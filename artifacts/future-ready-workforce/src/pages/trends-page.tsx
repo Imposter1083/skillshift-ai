@@ -50,7 +50,7 @@ export default function TrendsPage() {
     <details className="panel panel-pad" style={{ marginBottom: 18 }} data-testid="panel-radar-methodology">
       <summary>Evidence & methodology</summary>
       <p className="muted" style={{ marginTop: 12 }}>Each series contains hand-authored fictional posting counts at four historical sample dates. The chart plots those exact values, not a projection or an estimate of labour-market demand. Filters select records and observations; they do not infer missing dates or average regions together.</p>
-      <p className="muted">Select a record below for its source fields, observation period, last-updated date and missing/stale evidence warnings. No verified labour-market source is connected.</p>
+      <p className="muted">Select a record below for its source fields, observation period, last-updated date and missing/stale evidence warnings. These synthetic records have no verified source; the official DOSM figures above are kept separate and are not mixed into this chart.</p>
     </details>
     {result.status === 'loading' && !result.data && <LoadingBlock />}
     {result.status === 'error' && <ErrorBlock message={result.error ?? 'Could not load signals.'} onRetry={result.retry} />}

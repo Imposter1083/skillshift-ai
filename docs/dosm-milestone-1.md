@@ -28,7 +28,7 @@ No unavailable link required an alternate source. The supplied API sample URL re
 
 ### Monthly labour-force series
 
-The adapter retrieves `lfs_month` through the OpenDOSM API, validates the returned records and caches them in memory for six hours. Counts are in thousands of people; rate measures are percentages. API rows include an observation month but do not include a per-row publication date, so `publicationDate` remains `null` rather than being inferred. Retrieval time is recorded on every response.
+The adapter retrieves `lfs_month` through the OpenDOSM API, validates the returned records and caches them in memory for six hours. Concurrent requests share a single upstream download. After a failed download the source is not retried for 60 seconds: requests in that window receive the previously retrieved copy (marked stale) or an immediate error if none exists, rather than each waiting on the 10-second upstream timeout. Refresh requests in the same window report the last failure without contacting the source. Counts are in thousands of people; rate measures are percentages. API rows include an observation month but do not include a per-row publication date, so `publicationDate` remains `null` rather than being inferred. Retrieval time is recorded on every response.
 
 This dataset is a **national labour-force context series**, not occupation-level vacancy data or skill demand. The catalogue notes that observations before 2025 use 2010 Census population benchmarks and observations from 2025 use 2020 Census benchmarks; comparisons across that boundary should be treated cautiously.
 
@@ -39,3 +39,13 @@ The checked-in snapshot contains the nine named major occupation groups for 2026
 The source measure is online job offerings advertised through major private recruitment platforms. It is not a count of all vacancies, employed people, future demand or skill requirements. No skill-demand estimates or unsupported growth rates are derived from it. The workbook's `Unclassified` row is omitted because Q2 reports a dash rather than a comparable observation; it is not converted to zero.
 
 The Q1/Q2 report workbooks are reviewed static records in this milestone. The refresh button refreshes the monthly OpenDOSM API series only; it does not claim to download or update quarterly workbooks.
+
+## Verification log — 2026-10-21 (Claude Code cloud session)
+
+Verified in this session:
+
+- API tests: all pass (78 after merging into the team project; `pnpm --filter @workspace/api-server run test`), including source parsing, invalid records, caching, refresh failure fallback, request sharing and failure back-off. Full workspace typecheck and production builds pass.
+- The reviewed Q1/Q2 snapshot passes its own validation: identifiers and labels are unique, counts are non-negative integers, and the nine group counts reconcile exactly to the published totals (626,861 and 555,509).
+- In a browser against the running API server, the Skills Radar page shows the snapshot table, totals, publication dates, attribution, terms link and caveats; synthetic records remain separately labelled; when OpenDOSM is unreachable the labour-force panel shows an error and retry state and does not substitute synthetic values.
+
+Not verifiable in this session: the session's network policy blocks `api.data.gov.my`, `open.dosm.gov.my` and `www.dosm.gov.my`. A live OpenDOSM refresh, the current API payload shape and the snapshot figures against the DOSM workbooks were therefore not re-checked here. They rely on the source checks recorded above and should be re-confirmed by pressing **Refresh monthly data** in an environment with access to those hosts.
