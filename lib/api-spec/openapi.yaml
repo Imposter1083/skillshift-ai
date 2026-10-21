@@ -1,0 +1,913 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: career
+    description: Dataset-based career skill matching
+  - name: dosm
+    description: Official DOSM labour-force and Job Market Insights data
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /career/skills:
+    get:
+      operationId: listCareerSkills
+      tags: [career]
+      summary: List skills known to the career dataset
+      description: Returns every distinct normalized skill name in the role-to-skill dataset.
+      responses:
+        "200":
+          description: Skill names
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareerSkillList"
+  /career/cv-skills:
+    post:
+      operationId: extractCvSkills
+      tags: [career]
+      summary: Extract dataset skills and labelled profile details from an in-memory CV
+      description: PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CvUploadInput"
+      responses:
+        "200":
+          description: Detected skills and explicitly labelled profile details for user review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CvSkillExtraction"
+        "400":
+          description: Missing, malformed or unsupported file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: File or expanded document exceeds the processing limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: No readable text could be recognized; retry with a clearer file or enter skills manually
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Extraction capacity is busy; retry shortly
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /career/match:
+    post:
+      operationId: matchCareers
+      tags: [career]
+      summary: Rank role families by dataset skill overlap
+      description: >
+        Compares the supplied skills (normalized, exact-name matching) with each
+        role family's 30 listed skills. Score = matched skills / 30 x 100.
+        This is dataset skill overlap, not a probability of employment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareerSkillsInput"
+      responses:
+        "200":
+          description: Ranked role families
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareerMatchResult"
+        "400":
+          description: Invalid skills input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List job listings
+      parameters:
+        - $ref: "#/components/parameters/JobPage"
+        - $ref: "#/components/parameters/JobLimit"
+        - $ref: "#/components/parameters/JobKeyword"
+        - $ref: "#/components/parameters/JobMinimumSalary"
+        - $ref: "#/components/parameters/JobMaximumSalary"
+        - $ref: "#/components/parameters/JobState"
+        - $ref: "#/components/parameters/JobCity"
+        - $ref: "#/components/parameters/JobRemote"
+        - $ref: "#/components/parameters/JobEmploymentType"
+        - $ref: "#/components/parameters/JobSort"
+      responses:
+        "200":
+          description: Paginated job listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPage"
+        "400":
+          description: Invalid filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /jobs/search:
+    get:
+      operationId: searchJobs
+      tags: [jobs]
+      summary: Search jobs by title, company, or skills
+      parameters:
+        - $ref: "#/components/parameters/JobPage"
+        - $ref: "#/components/parameters/JobLimit"
+        - $ref: "#/components/parameters/JobSearchKeyword"
+        - $ref: "#/components/parameters/JobMinimumSalary"
+        - $ref: "#/components/parameters/JobMaximumSalary"
+        - $ref: "#/components/parameters/JobState"
+        - $ref: "#/components/parameters/JobCity"
+        - $ref: "#/components/parameters/JobRemote"
+        - $ref: "#/components/parameters/JobEmploymentType"
+        - $ref: "#/components/parameters/JobSort"
+      responses:
+        "200":
+          description: Paginated matching listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPage"
+        "400":
+          description: Invalid search filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /jobs/filter:
+    get:
+      operationId: filterJobs
+      tags: [jobs]
+      summary: Filter jobs by salary, location, and employment type
+      parameters:
+        - $ref: "#/components/parameters/JobPage"
+        - $ref: "#/components/parameters/JobLimit"
+        - $ref: "#/components/parameters/JobKeyword"
+        - $ref: "#/components/parameters/JobMinimumSalary"
+        - $ref: "#/components/parameters/JobMaximumSalary"
+        - $ref: "#/components/parameters/JobState"
+        - $ref: "#/components/parameters/JobCity"
+        - $ref: "#/components/parameters/JobRemote"
+        - $ref: "#/components/parameters/JobEmploymentType"
+        - $ref: "#/components/parameters/JobSort"
+      responses:
+        "200":
+          description: Paginated filtered listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPage"
+        "400":
+          description: Invalid filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get job details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /jobs/match-score:
+    post:
+      operationId: calculateJobMatchScores
+      tags: [jobs]
+      summary: Calculate profile skill overlap for job listings
+      description: Exact normalized skill-name overlap. This is not a hiring probability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobMatchInput"
+      responses:
+        "200":
+          description: Match scores for the requested jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobMatchScores"
+        "400":
+          description: Invalid match request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /dosm/labour-force:
+    get:
+      operationId: getDosmLabourForce
+      tags: [dosm]
+      summary: Get validated monthly labour-force observations from OpenDOSM
+      description: National labour-force context only; these observations are not occupation or skill-demand data.
+      parameters:
+        - name: fromMonth
+          in: query
+          required: false
+          description: Inclusive month filter in YYYY-MM format.
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        - name: toMonth
+          in: query
+          required: false
+          description: Inclusive month filter in YYYY-MM format.
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+      responses:
+        "200":
+          description: Validated monthly observations and source metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DosmLabourForceResponse"
+        "400":
+          description: Invalid month range
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: OpenDOSM is unavailable and no usable cached copy exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /dosm/job-market-insights:
+    get:
+      operationId: getDosmJobMarketInsights
+      tags: [dosm]
+      summary: Get the reviewed DOSM 2026 Q1/Q2 major-occupation-group snapshot
+      description: Counts are online job offerings, not a complete vacancy count or skill-demand measure.
+      responses:
+        "200":
+          description: Reviewed occupation-group counts with report and terms links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DosmJobMarketInsightsResponse"
+  /dosm/refresh:
+    post:
+      operationId: refreshDosmLabourForce
+      tags: [dosm]
+      summary: Force a refresh of the monthly OpenDOSM labour-force dataset
+      description: Refreshes only the OpenDOSM monthly series; the reviewed quarterly JMI workbook snapshot is not refreshed.
+      responses:
+        "200":
+          description: OpenDOSM data was retrieved, validated and cached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DosmRefreshResponse"
+        "502":
+          description: OpenDOSM refresh failed; any previous cached copy is retained
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  parameters:
+    JobPage:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    JobLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    JobKeyword:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 100
+    JobSearchKeyword:
+      name: q
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    JobMinimumSalary:
+      name: minSalary
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+    JobMaximumSalary:
+      name: maxSalary
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+    JobState:
+      name: state
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 80
+    JobCity:
+      name: city
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 80
+    JobRemote:
+      name: remote
+      in: query
+      required: false
+      schema:
+        type: boolean
+    JobEmploymentType:
+      name: employmentType
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [full-time, part-time, contract, internship]
+    JobSort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [relevance, recent]
+        default: recent
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    CvUploadInput:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+    CvProfileSuggestions:
+      type: object
+      properties:
+        occupation: { type: string, maxLength: 120 }
+        experienceYears: { type: number, minimum: 0, maximum: 60 }
+        education: { type: string, maxLength: 120 }
+        qualification: { type: string, maxLength: 120 }
+        studyField: { type: string, maxLength: 120 }
+        interests:
+          type: array
+          maxItems: 10
+          items: { type: string, maxLength: 120 }
+        location: { type: string, maxLength: 120 }
+        workPreference:
+          type: string
+          enum: [Any, Remote, Hybrid, On-site]
+        learningHours: { type: integer, minimum: 1, maximum: 40 }
+        budgetMYR: { type: number, minimum: 0, maximum: 100000 }
+        goals: { type: string, maxLength: 500 }
+    CvSkillExtraction:
+      type: object
+      required: [skills, warnings, profileSuggestions]
+      properties:
+        skills:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+        profileSuggestions:
+          $ref: "#/components/schemas/CvProfileSuggestions"
+    CareerSkillList:
+      type: object
+      properties:
+        skills:
+          type: array
+          items:
+            type: string
+      required:
+        - skills
+    CareerSkillsInput:
+      type: object
+      properties:
+        skills:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 60
+      required:
+        - skills
+    CareerMatch:
+      type: object
+      properties:
+        roleFamily:
+          type: string
+        score:
+          type: number
+          description: Matched skills / skills considered x 100, rounded to one decimal place.
+        skillsConsidered:
+          type: integer
+        matchedSkills:
+          type: array
+          items:
+            type: string
+        missingSkills:
+          type: array
+          items:
+            type: string
+      required:
+        - roleFamily
+        - score
+        - skillsConsidered
+        - matchedSkills
+        - missingSkills
+    CareerScoring:
+      type: object
+      properties:
+        label:
+          type: string
+        formula:
+          type: string
+        note:
+          type: string
+      required:
+        - label
+        - formula
+        - note
+    CareerSource:
+      type: object
+      properties:
+        datasetName:
+          type: string
+        publisher:
+          type: string
+        period:
+          type: string
+        license:
+          type: string
+        citation:
+          type: string
+        urls:
+          type: array
+          items:
+            type: string
+        intendedUse:
+          type: string
+        geographyNote:
+          type: string
+        measurementNote:
+          type: string
+      required:
+        - datasetName
+        - publisher
+        - period
+        - license
+        - citation
+        - urls
+        - intendedUse
+        - geographyNote
+        - measurementNote
+    CareerMatchResult:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareerMatch"
+        normalizedSkills:
+          type: array
+          items:
+            type: string
+        unrecognizedSkills:
+          type: array
+          items:
+            type: string
+        scoring:
+          $ref: "#/components/schemas/CareerScoring"
+        source:
+          $ref: "#/components/schemas/CareerSource"
+      required:
+        - matches
+        - normalizedSkills
+        - unrecognizedSkills
+        - scoring
+        - source
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        company:
+          type: string
+        location:
+          type: string
+        state:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        remote:
+          type: boolean
+        salaryMin:
+          type: ["integer", "null"]
+        salaryMax:
+          type: ["integer", "null"]
+        employmentType:
+          type: string
+          enum: [full-time, part-time, contract, internship]
+        shortDescription:
+          type: string
+        description:
+          type: string
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        externalUrl:
+          type: ["string", "null"]
+          format: uri
+          pattern: "^https?://"
+        datePosted:
+          type: string
+          format: date
+        companyInfo:
+          type: string
+        demo:
+          type: boolean
+      required:
+        - id
+        - title
+        - company
+        - location
+        - state
+        - city
+        - remote
+        - salaryMin
+        - salaryMax
+        - employmentType
+        - shortDescription
+        - description
+        - requiredSkills
+        - externalUrl
+        - datePosted
+        - companyInfo
+        - demo
+    JobPage:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Job"
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+      required: [jobs, page, limit, total, totalPages]
+    JobMatchInput:
+      type: object
+      properties:
+        candidateSkills:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+            maxLength: 60
+        jobIds:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+      required: [candidateSkills]
+    JobMatchScore:
+      type: object
+      properties:
+        jobId:
+          type: string
+        score:
+          type: number
+        matchedSkills:
+          type: array
+          items:
+            type: string
+        missingSkills:
+          type: array
+          items:
+            type: string
+        skillsConsidered:
+          type: integer
+      required: [jobId, score, matchedSkills, missingSkills, skillsConsidered]
+    JobMatchScores:
+      type: object
+      properties:
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobMatchScore"
+        scoringNote:
+          type: string
+      required: [scores, scoringNote]
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    DosmLabourForceObservation:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        labourForceThousands:
+          type: number
+          minimum: 0
+        employedThousands:
+          type: number
+          minimum: 0
+        unemployedThousands:
+          type: number
+          minimum: 0
+        outsideLabourForceThousands:
+          type: number
+          minimum: 0
+        participationRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        employmentPopulationRatio:
+          type: number
+          minimum: 0
+          maximum: 100
+        unemploymentRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        publicationDate:
+          type: [string, "null"]
+          format: date
+          description: Not supplied per observation by the OpenDOSM API; null is intentional.
+      required:
+        - date
+        - labourForceThousands
+        - employedThousands
+        - unemployedThousands
+        - outsideLabourForceThousands
+        - participationRate
+        - employmentPopulationRatio
+        - unemploymentRate
+        - publicationDate
+    DosmLabourForceMetadata:
+      type: object
+      properties:
+        datasetId:
+          type: string
+        sourceName:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        apiUrl:
+          type: string
+          format: uri
+        license:
+          type: string
+        licenseUrl:
+          type: string
+          format: uri
+        attribution:
+          type: string
+        coverage:
+          type: string
+        countUnit:
+          type: string
+        rateUnit:
+          type: string
+        methodology:
+          type: string
+        caveats:
+          type: array
+          items:
+            type: string
+        retrievedAt:
+          type: string
+          format: date-time
+        latestObservationDate:
+          type: string
+          format: date
+      required:
+        - datasetId
+        - sourceName
+        - sourceUrl
+        - apiUrl
+        - license
+        - licenseUrl
+        - attribution
+        - coverage
+        - countUnit
+        - rateUnit
+        - methodology
+        - caveats
+        - retrievedAt
+        - latestObservationDate
+    DosmLabourForceResponse:
+      type: object
+      properties:
+        metadata:
+          $ref: "#/components/schemas/DosmLabourForceMetadata"
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/DosmLabourForceObservation"
+        isStale:
+          type: boolean
+        warning:
+          type: [string, "null"]
+      required: [metadata, observations, isStale, warning]
+    DosmJobMarketObservation:
+      type: object
+      properties:
+        quarter:
+          type: string
+          enum: ["2026-Q1", "2026-Q2"]
+        jobOfferings:
+          type: integer
+          minimum: 0
+        publicationDate:
+          type: string
+          format: date
+        reportUrl:
+          type: string
+          format: uri
+        dataUrl:
+          type: string
+          format: uri
+      required: [quarter, jobOfferings, publicationDate, reportUrl, dataUrl]
+    DosmOccupationGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Application-owned stable key; the source workbook provides a label, not a standard occupation code.
+        label:
+          type: string
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/DosmJobMarketObservation"
+      required: [id, label, observations]
+    DosmJobMarketInsightsResponse:
+      type: object
+      properties:
+        datasetId:
+          type: string
+        sourceName:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        termsUrl:
+          type: string
+          format: uri
+        attribution:
+          type: string
+        reuseNote:
+          type: string
+        coverage:
+          type: string
+        measure:
+          type: string
+        classification:
+          type: string
+        methodology:
+          type: string
+        caveats:
+          type: array
+          items:
+            type: string
+        reviewedAt:
+          type: string
+          format: date
+        totalByQuarter:
+          type: array
+          items:
+            $ref: "#/components/schemas/DosmJobMarketObservation"
+        occupationGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DosmOccupationGroup"
+      required:
+        - datasetId
+        - sourceName
+        - sourceUrl
+        - termsUrl
+        - attribution
+        - reuseNote
+        - coverage
+        - measure
+        - classification
+        - methodology
+        - caveats
+        - reviewedAt
+        - totalByQuarter
+        - occupationGroups
+    DosmRefreshResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [refreshed]
+        retrievedAt:
+          type: string
+          format: date-time
+        observationsLoaded:
+          type: integer
+          minimum: 1
+        latestObservationDate:
+          type: string
+          format: date
+      required: [status, retrievedAt, observationsLoaded, latestObservationDate]
+
