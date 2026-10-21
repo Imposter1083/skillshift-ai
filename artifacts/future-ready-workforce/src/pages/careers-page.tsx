@@ -5,6 +5,7 @@ import { useWorkspace } from '@/domain/workspace-context';
 import { demoService, methodology } from '@/domain/services';
 import type { CareerAssessment } from '@/domain/types';
 import { Bar, EmptyBlock, ErrorBlock, EvidencePanel, GapStatus, LoadingBlock, PageHead, PriorityTag, SectionTitle, useAsync } from '@/components/workspace/ui';
+import { OfficialOccupationsPanel } from '@/components/workspace/occupation-evidence';
 
 function Comparison({ list }: { list: CareerAssessment[] }) {
   const { setTargetRole } = useWorkspace();
@@ -60,5 +61,6 @@ export default function CareersPage() {
         <div className="panel panel-pad"><SectionTitle title="Evidence" note="SHARED BY ALL SAMPLE ROLES" /><EvidencePanel evidence={list[0].role.evidence} /></div>
       </div>
     </>)}
+    <OfficialOccupationsPanel />
   </>;
 }

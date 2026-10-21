@@ -31,6 +31,7 @@ A skills intelligence demo for exploring career matches, learning paths, workfor
 - `artifacts/future-ready-workforce/src/components/job-search-page.tsx` and `job-details-page.tsx` — job search and details UI.
 - `artifacts/api-server/src/services/job_provider.ts` — provider contract and current demo source.
 - `lib/api-spec/openapi.yaml` — API source of truth; regenerate clients with the codegen command above.
+- `artifacts/api-server/src/data/occupation-evidence/` — reviewed MyCOL 2024/2025 subset, MASCO-to-O*NET mapping and O*NET 31.0 skill ratings (regenerate with `pnpm --filter @workspace/api-server run import:onet`); see `docs/occupation-evidence-milestone-2.md`.
 - `artifacts/future-ready-workforce/src/index.css` and `src/components/job-search.css` — app theme and job-search styling.
 
 ## Architecture decisions

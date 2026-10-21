@@ -241,6 +241,26 @@ function knownSkills(dataset: CareerDataset): ReadonlySet<string> {
   return known;
 }
 
+/**
+ * Exact normalized skill overlap: matched skills / skills considered x 100,
+ * rounded to one decimal place. Shared by every dataset-overlap score so
+ * there is one formula. `skills` must already be normalized.
+ */
+export function skillOverlap(
+  skills: readonly string[],
+  provided: ReadonlySet<string>,
+): Omit<CareerMatch, "roleFamily"> {
+  const matchedSkills: string[] = [];
+  const missingSkills: string[] = [];
+  for (const s of skills) (provided.has(s) ? matchedSkills : missingSkills).push(s);
+  return {
+    score: skills.length ? Math.round((matchedSkills.length / skills.length) * 1000) / 10 : 0,
+    skillsConsidered: skills.length,
+    matchedSkills,
+    missingSkills,
+  };
+}
+
 export function matchSkills(
   dataset: CareerDataset,
   rawSkills: string[],
@@ -258,19 +278,7 @@ export function matchSkills(
   const provided = new Set(normalizedSkills);
 
   const matches: CareerMatch[] = dataset.roles
-    .map((role) => {
-      const matchedSkills: string[] = [];
-      const missingSkills: string[] = [];
-      for (const s of role.skills) (provided.has(s) ? matchedSkills : missingSkills).push(s);
-      const skillsConsidered = role.skills.length;
-      return {
-        roleFamily: role.roleFamily,
-        score: Math.round((matchedSkills.length / skillsConsidered) * 1000) / 10,
-        skillsConsidered,
-        matchedSkills,
-        missingSkills,
-      };
-    })
+    .map((role) => ({ roleFamily: role.roleFamily, ...skillOverlap(role.skills, provided) }))
     .filter((m) => includeUnmatchedRoles || m.matchedSkills.length > 0)
     // Higher score first; ties broken alphabetically by role family so the
     // order is deterministic.
