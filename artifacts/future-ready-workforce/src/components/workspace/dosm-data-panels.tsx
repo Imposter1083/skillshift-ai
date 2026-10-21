@@ -169,7 +169,7 @@ export function DosmDataPanels() {
         )}
         {refreshMutation.isError && (
           <div role="alert" className="state-box" style={{ marginBottom: 12 }}>
-            Refresh failed. Existing cached data was kept.{" "}
+            Refresh failed. Any previously retrieved data was kept.{" "}
             {refreshMutation.error instanceof Error ? refreshMutation.error.message : ""}
           </div>
         )}

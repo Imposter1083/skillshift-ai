@@ -122,3 +122,77 @@ test("filters by inclusive month boundaries and validates their order", async ()
     /start month must not be after/,
   );
 });
+
+test("shares one upstream request between concurrent cold-cache readers", async () => {
+  let requestCount = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const service = createDosmLabourForceService({
+    now: () => new Date("2026-10-21T00:00:00.000Z"),
+    fetchImpl: async () => {
+      requestCount += 1;
+      await gate;
+      return new Response(JSON.stringify(sampleRecords), { status: 200 });
+    },
+  });
+
+  const readers = [service.get(), service.get(), service.refresh()];
+  release();
+  await Promise.all(readers);
+  assert.equal(requestCount, 1);
+});
+
+test("backs off after a failed refresh instead of retrying upstream on every request", async () => {
+  let requestCount = 0;
+  let fail = false;
+  let now = new Date("2026-10-21T00:00:00.000Z");
+  const service = createDosmLabourForceService({
+    now: () => now,
+    cacheTtlMs: 1_000,
+    failureRetryMs: 60_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return fail
+        ? new Response("unavailable", { status: 503 })
+        : new Response(JSON.stringify(sampleRecords), { status: 200 });
+    },
+  });
+
+  await service.get();
+  fail = true;
+  now = new Date(now.getTime() + 2_000);
+  assert.equal((await service.get()).isStale, true);
+  assert.equal(requestCount, 2);
+
+  // Within the back-off window the stale copy is served without new upstream calls.
+  assert.equal((await service.get()).isStale, true);
+  await assert.rejects(service.refresh(), /HTTP 503/);
+  assert.equal(requestCount, 2);
+
+  // After the window, the source is tried again and a recovery is picked up.
+  fail = false;
+  now = new Date(now.getTime() + 61_000);
+  const recovered = await service.get();
+  assert.equal(recovered.isStale, false);
+  assert.equal(requestCount, 3);
+});
+
+test("fails fast during the back-off window when no cached copy exists", async () => {
+  let requestCount = 0;
+  let now = new Date("2026-10-21T00:00:00.000Z");
+  const service = createDosmLabourForceService({
+    now: () => now,
+    failureRetryMs: 60_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      throw new TypeError("fetch failed");
+    },
+  });
+
+  await assert.rejects(service.get(), /fetch failed/);
+  await assert.rejects(service.get(), /fetch failed/);
+  assert.equal(requestCount, 1);
+  now = new Date(now.getTime() + 61_000);
+  await assert.rejects(service.get(), /fetch failed/);
+  assert.equal(requestCount, 2);
+});
