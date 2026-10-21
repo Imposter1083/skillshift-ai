@@ -624,3 +624,30 @@ export const MatchOccupationEvidenceResponse = zod.object({
 })
 
 
+/**
+ * Official O*NET skill elements and dataset skills, with SkillShift browsing facets and SkillShift-reviewed aliases. Aliases and facets are not official classifications.
+ * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+ */
+export const GetSkillCatalogueResponse = zod.object({
+  "facets": zod.array(zod.string()),
+  "entries": zod.array(zod.object({
+  "name": zod.string(),
+  "key": zod.string().describe('Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching.'),
+  "facet": zod.string(),
+  "sources": zod.array(zod.enum(['onet', 'dataset'])),
+  "onet": zod.union([zod.object({
+  "elementId": zod.string(),
+  "group": zod.string(),
+  "description": zod.string()
+}),zod.null()]),
+  "aliases": zod.array(zod.string())
+})),
+  "sources": zod.object({
+  "onet": zod.string(),
+  "dataset": zod.string(),
+  "aliases": zod.string(),
+  "facets": zod.string()
+})
+})
+
+

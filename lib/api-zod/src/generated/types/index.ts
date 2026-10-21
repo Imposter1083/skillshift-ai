@@ -67,3 +67,8 @@ export * from './onetOccupation';
 export * from './onetSource';
 export * from './onetSourceScales';
 export * from './searchJobsParams';
+export * from './skillCatalogue';
+export * from './skillCatalogueEntry';
+export * from './skillCatalogueEntryOnet';
+export * from './skillCatalogueEntrySourcesItem';
+export * from './skillCatalogueSources';

@@ -48,9 +48,9 @@ async function uploadSyntheticCv(page: Page) {
   await expect(page.getByTestId('dialog-cv-review')).toBeVisible();
 }
 
-test('About You starts blank and saved fields clear on refresh while skills remain', async ({ page }) => {
+test('About You starts blank and saved fictional fields persist after refresh', async ({ page }) => {
   await page.goto('/profile');
-  await expect(page.getByText(/About You resets on refresh/)).toBeVisible();
+  await expect(page.getByTestId('text-fictional-data-notice')).toContainText('Use fictional demo details only');
 
   const adultFields = [
     ['input-occupation', 'e.g., Operations coordinator'],
@@ -82,11 +82,11 @@ test('About You starts blank and saved fields clear on refresh while skills rema
 
   await page.getByTestId('button-save-profile').click();
   await page.reload();
-  await expect(page.getByTestId('input-occupation')).toHaveValue('');
+  await expect(page.getByTestId('input-occupation')).toHaveValue('Operations coordinator');
   await expect(page.getByTestId('input-experience')).toHaveValue('');
-  await expect(page.getByTestId('select-work-preference')).toHaveValue('');
+  await expect(page.getByTestId('select-work-preference')).toHaveValue('Hybrid');
   await expect.poll(() => storedAdultProfile(page)).toMatchObject({
-    occupation: '',
+    occupation: 'Operations coordinator',
     education: '',
   });
 
@@ -99,8 +99,8 @@ test('About You starts blank and saved fields clear on refresh while skills rema
   await page.getByTestId('input-study-field').fill('Business');
   await page.getByTestId('button-save-profile').click();
   await page.reload();
-  await expect(page.getByTestId('input-qualification')).toHaveValue('');
-  await expect(page.getByTestId('input-study-field')).toHaveValue('');
+  await expect(page.getByTestId('input-qualification')).toHaveValue('Diploma in Business');
+  await expect(page.getByTestId('input-study-field')).toHaveValue('Business');
 
   for (const audience of ['hr', 'education'] as const) {
     await page.locator('#side').selectOption(audience);
@@ -109,10 +109,10 @@ test('About You starts blank and saved fields clear on refresh while skills rema
   }
   await page.reload();
   await expect(page.locator('#side')).toHaveValue('education');
-  await expect(page.getByTestId('input-occupation')).toHaveValue('');
-  for (const audience of ['adult', 'graduate', 'hr', 'education'] as const) {
+  const expectedOccupations = { adult: 'Operations coordinator', graduate: '', hr: 'Saved hr value', education: 'Saved education value' };
+  for (const [audience, occupation] of Object.entries(expectedOccupations)) {
     await page.locator('#side').selectOption(audience);
-    await expect(page.getByTestId('input-occupation')).toHaveValue('');
+    await expect(page.getByTestId('input-occupation')).toHaveValue(occupation);
   }
 
   await page.locator('#side').selectOption('adult');
@@ -123,7 +123,7 @@ test('About You starts blank and saved fields clear on refresh while skills rema
   await expect(page.getByTestId('input-occupation')).toHaveValue('');
 });
 
-test('applies only checked About You fields, then clears details but keeps skills on reload', async ({ page }) => {
+test('applies only checked About You fields and keeps saved details and skills on reload', async ({ page }) => {
   await setInitialProfile(page);
   await mockCvResponse(page, {
     skills: ['AI literacy'],
@@ -170,14 +170,14 @@ test('applies only checked About You fields, then clears details but keeps skill
   });
 
   await page.reload();
-  await expect(page.getByTestId('input-occupation')).toHaveValue('');
-  await expect(page.getByTestId('input-education')).toHaveValue('');
+  await expect(page.getByTestId('input-occupation')).toHaveValue('CV suggested role');
+  await expect(page.getByTestId('input-education')).toHaveValue('Existing education');
   await expect.poll(() => page.locator('[data-testid^="input-skill-name-"]').evaluateAll(
     inputs => inputs.map(input => (input as HTMLInputElement).value),
   )).toContain('AI literacy');
   await expect.poll(() => storedAdultProfile(page)).toMatchObject({
-    occupation: '',
-    education: '',
+    occupation: 'CV suggested role',
+    education: 'Existing education',
     skills: expect.arrayContaining([expect.objectContaining({ name: 'AI literacy', level: 4 })]),
   });
 });
@@ -203,6 +203,6 @@ test('does not change profile fields when the CV has no About You suggestions', 
   });
 
   await page.reload();
-  await expect(page.getByTestId('input-occupation')).toHaveValue('');
-  await expect(page.getByTestId('input-education')).toHaveValue('');
+  await expect(page.getByTestId('input-occupation')).toHaveValue('Existing occupation');
+  await expect(page.getByTestId('input-education')).toHaveValue('Existing education');
 });

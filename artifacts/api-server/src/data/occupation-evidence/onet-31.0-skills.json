@@ -43,6 +43,255 @@
       "maximum": 7
     }
   },
+  "skillGroups": [
+    {
+      "elementId": "2.A.1",
+      "name": "Foundational Areas",
+      "description": "Areas that support learning and applying skills across many types of work."
+    },
+    {
+      "elementId": "2.A.2",
+      "name": "Ways of Working",
+      "description": "Ways of doing work that support learning and building skills."
+    },
+    {
+      "elementId": "2.B.1",
+      "name": "Social Skills",
+      "description": "Skills used to work with others to achieve goals at work."
+    },
+    {
+      "elementId": "2.B.2",
+      "name": "Complex Problem Solving Skills",
+      "description": "Skills used to solve new and challenging problems at work."
+    },
+    {
+      "elementId": "2.B.3",
+      "name": "Technical Skills",
+      "description": "Skills used to design, set up, operate, and fix machines and systems at work."
+    },
+    {
+      "elementId": "2.B.4",
+      "name": "Systems Skills",
+      "description": "Skills used to understand and improve systems at work, such as processes, decision making, or workflows."
+    },
+    {
+      "elementId": "2.B.5",
+      "name": "Resource Management Skills",
+      "description": "Skills used to manage time, money, materials, and people effectively at work."
+    }
+  ],
+  "skillElements": [
+    {
+      "elementId": "2.A.1.a",
+      "name": "Reading Comprehension",
+      "description": "Understanding written sentences and paragraphs in work-related documents.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.1.b",
+      "name": "Active Listening",
+      "description": "Giving full attention to what other people are saying, taking time to understand the points being made, asking questions as appropriate, and not interrupting at inappropriate times.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.1.c",
+      "name": "Writing",
+      "description": "Communicating effectively in writing as appropriate for the needs of the audience.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.1.d",
+      "name": "Speaking",
+      "description": "Talking to others to convey information effectively.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.1.e",
+      "name": "Mathematics",
+      "description": "Using mathematics to solve problems.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.1.f",
+      "name": "Science",
+      "description": "Using scientific rules and methods to solve problems.",
+      "groupId": "2.A.1"
+    },
+    {
+      "elementId": "2.A.2.a",
+      "name": "Critical Thinking",
+      "description": "Using logic and reasoning to identify the strengths and weaknesses of alternative solutions, conclusions, or approaches to problems.",
+      "groupId": "2.A.2"
+    },
+    {
+      "elementId": "2.A.2.b",
+      "name": "Active Learning",
+      "description": "Understanding the implications of new information for both current and future problem-solving and decision-making.",
+      "groupId": "2.A.2"
+    },
+    {
+      "elementId": "2.A.2.c",
+      "name": "Learning Strategies",
+      "description": "Selecting and using training/instructional methods and procedures appropriate for the situation when learning or teaching new things.",
+      "groupId": "2.A.2"
+    },
+    {
+      "elementId": "2.A.2.d",
+      "name": "Monitoring",
+      "description": "Monitoring/Assessing performance of yourself, other individuals, or organizations to make improvements or take corrective action.",
+      "groupId": "2.A.2"
+    },
+    {
+      "elementId": "2.B.1.a",
+      "name": "Social Perceptiveness",
+      "description": "Being aware of others' reactions and understanding why they react as they do.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.1.b",
+      "name": "Coordination",
+      "description": "Adjusting actions in relation to others' actions.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.1.c",
+      "name": "Persuasion",
+      "description": "Persuading others to change their minds or behavior.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.1.d",
+      "name": "Negotiation",
+      "description": "Bringing others together and trying to reconcile differences.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.1.e",
+      "name": "Instructing",
+      "description": "Teaching others how to do something.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.1.f",
+      "name": "Service Orientation",
+      "description": "Actively looking for ways to help people.",
+      "groupId": "2.B.1"
+    },
+    {
+      "elementId": "2.B.2.i",
+      "name": "Complex Problem Solving",
+      "description": "Identifying complex problems and reviewing related information to develop and evaluate options and implement solutions.",
+      "groupId": "2.B.2"
+    },
+    {
+      "elementId": "2.B.3.a",
+      "name": "Operations Analysis",
+      "description": "Analyzing needs and product requirements to create a design.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.b",
+      "name": "Technology Design",
+      "description": "Generating or adapting equipment and technology to serve user needs.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.c",
+      "name": "Equipment Selection",
+      "description": "Determining the kind of tools and equipment needed to do a job.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.d",
+      "name": "Installation",
+      "description": "Installing equipment, machines, wiring, or programs to meet specifications.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.e",
+      "name": "Programming",
+      "description": "Writing computer programs for various purposes.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.g",
+      "name": "Operations Monitoring",
+      "description": "Watching gauges, dials, or other indicators to make sure a machine is working properly.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.h",
+      "name": "Operation and Control",
+      "description": "Controlling operations of equipment or systems.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.j",
+      "name": "Equipment Maintenance",
+      "description": "Performing routine maintenance on equipment and determining when and what kind of maintenance is needed.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.k",
+      "name": "Troubleshooting",
+      "description": "Determining causes of operating errors and deciding what to do about it.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.l",
+      "name": "Repairing",
+      "description": "Repairing machines or systems using the needed tools.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.3.m",
+      "name": "Quality Control Analysis",
+      "description": "Conducting tests and inspections of products, services, or processes to evaluate quality or performance.",
+      "groupId": "2.B.3"
+    },
+    {
+      "elementId": "2.B.4.e",
+      "name": "Judgment and Decision Making",
+      "description": "Considering the relative costs and benefits of potential actions to choose the most appropriate one.",
+      "groupId": "2.B.4"
+    },
+    {
+      "elementId": "2.B.4.g",
+      "name": "Systems Analysis",
+      "description": "Determining how a system should work and how changes in conditions, operations, and the environment will affect outcomes.",
+      "groupId": "2.B.4"
+    },
+    {
+      "elementId": "2.B.4.h",
+      "name": "Systems Evaluation",
+      "description": "Identifying measures or indicators of system performance and the actions needed to improve or correct performance, relative to the goals of the system.",
+      "groupId": "2.B.4"
+    },
+    {
+      "elementId": "2.B.5.a",
+      "name": "Time Management",
+      "description": "Managing one's own time and the time of others.",
+      "groupId": "2.B.5"
+    },
+    {
+      "elementId": "2.B.5.b",
+      "name": "Management of Financial Resources",
+      "description": "Determining how money will be spent to get the work done, and accounting for these expenditures.",
+      "groupId": "2.B.5"
+    },
+    {
+      "elementId": "2.B.5.c",
+      "name": "Management of Material Resources",
+      "description": "Obtaining and seeing to the appropriate use of equipment, facilities, and materials needed to do certain work.",
+      "groupId": "2.B.5"
+    },
+    {
+      "elementId": "2.B.5.d",
+      "name": "Management of Personnel Resources",
+      "description": "Motivating, developing, and directing people as they work, identifying the best people for the job.",
+      "groupId": "2.B.5"
+    }
+  ],
   "occupations": {
     "11-3121.00": {
       "title": "Human Resources Managers",

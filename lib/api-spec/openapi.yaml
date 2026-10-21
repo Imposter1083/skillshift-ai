@@ -14,6 +14,8 @@ tags:
     description: Dataset-based career skill matching
   - name: dosm
     description: Official DOSM labour-force and Job Market Insights data
+  - name: skills
+    description: Searchable skill catalogue for the profile builder
   - name: occupations
     description: TalentCorp MyCOL critical occupations mapped to O*NET occupational skill information
 paths:
@@ -354,6 +356,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /skills/catalogue:
+    get:
+      operationId: getSkillCatalogue
+      tags: [skills]
+      summary: List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+      description: >
+        Official O*NET skill elements and dataset skills, with SkillShift browsing facets and
+        SkillShift-reviewed aliases. Aliases and facets are not official classifications.
+      responses:
+        "200":
+          description: Skill catalogue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillCatalogue"
 components:
   parameters:
     JobPage:
@@ -438,6 +455,62 @@ components:
         enum: [relevance, recent]
         default: recent
   schemas:
+    SkillCatalogueEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        key:
+          type: string
+          description: Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching.
+        facet:
+          type: string
+        sources:
+          type: array
+          items:
+            type: string
+            enum: [onet, dataset]
+        onet:
+          oneOf:
+            - type: object
+              properties:
+                elementId:
+                  type: string
+                group:
+                  type: string
+                description:
+                  type: string
+              required: [elementId, group, description]
+            - type: "null"
+        aliases:
+          type: array
+          items:
+            type: string
+      required: [name, key, facet, sources, onet, aliases]
+    SkillCatalogue:
+      type: object
+      properties:
+        facets:
+          type: array
+          items:
+            type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillCatalogueEntry"
+        sources:
+          type: object
+          properties:
+            onet:
+              type: string
+            dataset:
+              type: string
+            aliases:
+              type: string
+            facets:
+              type: string
+          required: [onet, dataset, aliases, facets]
+      required: [facets, entries, sources]
     OccupationSkillsInput:
       type: object
       properties:

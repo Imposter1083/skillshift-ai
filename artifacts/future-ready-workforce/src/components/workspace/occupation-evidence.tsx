@@ -16,7 +16,8 @@ export function useOccupationEvidence() {
   const skills = useMemo(() => profile.skills.map(s => s.name), [profile.skills]);
   return useQuery({
     queryKey: ['occupation-evidence', skills],
-    queryFn: ({ signal }) => matchOccupationEvidence({ skills }, { signal }),
+    // JSON is required so an HTML fallback page becomes an error state, not a crash.
+    queryFn: ({ signal }) => matchOccupationEvidence({ skills }, { signal, responseType: 'json' }),
     staleTime: 5 * 60_000,
   });
 }

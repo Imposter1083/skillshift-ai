@@ -113,12 +113,28 @@ async function main() {
     return { id, name: row["Scale Name"], minimum: Number(row["Minimum"]), maximum: Number(row["Maximum"]) };
   };
 
+  // Official skill groups and elements (2.A Essential, 2.B Transferable)
+  // from the content model, used for the profile skill catalogue.
+  const groups = contentModel.rows
+    .filter((r) => /^2\.[AB]\.\d+$/.test(r["Element ID"]))
+    .map((r) => ({ elementId: r["Element ID"], name: r["Element Name"], description: r["Description"] }));
+  const elements = contentModel.rows
+    .filter((r) => /^2\.[AB]\.\d+\.[a-z]$/.test(r["Element ID"]))
+    .map((r) => ({
+      elementId: r["Element ID"],
+      name: r["Element Name"],
+      description: r["Description"],
+      groupId: r["Element ID"].split(".").slice(0, 3).join("."),
+    }));
+
   const output = {
     release: RELEASE,
     releaseDate: "August 2026",
     taxonomy: "O*NET-SOC 2019",
     files: [occupations, essential, transferable, scales, contentModel].map((f) => f.file),
     scales: { importance: scale("IM"), level: scale("LV") },
+    skillGroups: groups,
+    skillElements: elements,
     occupations: result,
   };
   const target = join(dirname(fileURLToPath(import.meta.url)), `onet-${RELEASE}-skills.json`);

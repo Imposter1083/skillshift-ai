@@ -23,6 +23,33 @@ export function defaultWorkspace(): WorkspaceState {
   return { version: 1, audience: 'adult', profiles, targets: { adult: 'service-designer', graduate: 'workforce-analyst', hr: 'ai-operations', education: 'learning-partner' }, completion: {} };
 }
 const validRole = (value: unknown) => typeof value === 'string' && demoRoles.some(r => r.id === value);
+/**
+ * Recovers what it can from a saved profile that no longer passes the full
+ * schema (for example after a schema update): each valid About You field and
+ * each valid, non-duplicate skill is kept, and only invalid parts reset.
+ */
+function recoverProfile(raw: unknown, audience: Audience): DemoProfile | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const saved = raw as Record<string, unknown>;
+  const profile = { ...blankProfile(audience), skills: [] as DemoProfile['skills'] };
+  const fields = profileSchema.shape;
+  for (const key of ['occupation', 'experienceYears', 'education', 'qualification', 'studyField', 'interests', 'location', 'workPreference', 'learningHours', 'budgetMYR', 'goals'] as const) {
+    const parsed = fields[key].safeParse(saved[key]);
+    if (parsed.success) (profile as Record<string, unknown>)[key] = parsed.data;
+  }
+  if (!Array.isArray(saved.skills)) return { ...profile, skills: blankProfile(audience).skills };
+  const seen = new Set<string>();
+  for (const item of saved.skills) {
+    const parsed = skillSchema.safeParse(item);
+    if (!parsed.success) continue;
+    const key = parsed.data.name.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
+    if (seen.has(key) || profile.skills.length >= 50) continue;
+    seen.add(key);
+    profile.skills.push(parsed.data as DemoProfile['skills'][number]);
+  }
+  return profileSchema.safeParse(profile).success ? profile : null;
+}
+
 export function parseWorkspace(raw: string | null): { state: WorkspaceState; warning: string } {
   const fallback = defaultWorkspace();
   if (!raw) return { state: fallback, warning: '' };
@@ -38,7 +65,11 @@ export function parseWorkspace(raw: string | null): { state: WorkspaceState; war
       const profiles = saved.profiles as Record<string, unknown> | undefined;
       const parsed = profileSchema.safeParse(profiles?.[audience]);
       if (parsed.success && parsed.data.audience === audience) fallback.profiles[audience] = parsed.data as DemoProfile;
-      else recovered = true;
+      else {
+        recovered = true;
+        const salvaged = recoverProfile(profiles?.[audience], audience);
+        if (salvaged) fallback.profiles[audience] = salvaged;
+      }
       const targets = saved.targets as Record<string, unknown> | undefined;
       if (validRole(targets?.[audience])) fallback.targets[audience] = targets![audience] as string;
       else recovered = true;
@@ -49,7 +80,7 @@ export function parseWorkspace(raw: string | null): { state: WorkspaceState; war
         else recovered = true;
       }
     }
-    return { state: fallback, warning: recovered ? 'Some saved demo fields were invalid. Safe defaults were loaded for those fields; other audience profiles were retained.' : '' };
+    return { state: fallback, warning: recovered ? 'Some saved demo fields were invalid. Only those fields were reset; valid details and skills were kept.' : '' };
   } catch {
     return { state: fallback, warning: 'Saved demo data could not be read. Safe sample defaults are loaded. Your old storage has not been deleted.' };
   }

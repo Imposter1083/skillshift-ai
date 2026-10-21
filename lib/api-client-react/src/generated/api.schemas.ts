@@ -5,6 +5,43 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type SkillCatalogueEntrySourcesItem = typeof SkillCatalogueEntrySourcesItem[keyof typeof SkillCatalogueEntrySourcesItem];
+
+
+export const SkillCatalogueEntrySourcesItem = {
+  onet: 'onet',
+  dataset: 'dataset',
+} as const;
+
+export type SkillCatalogueEntryOnet = {
+  elementId: string;
+  group: string;
+  description: string;
+} | null;
+
+export interface SkillCatalogueEntry {
+  name: string;
+  /** Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching. */
+  key: string;
+  facet: string;
+  sources: SkillCatalogueEntrySourcesItem[];
+  onet: SkillCatalogueEntryOnet;
+  aliases: string[];
+}
+
+export type SkillCatalogueSources = {
+  onet: string;
+  dataset: string;
+  aliases: string;
+  facets: string;
+};
+
+export interface SkillCatalogue {
+  facets: string[];
+  entries: SkillCatalogueEntry[];
+  sources: SkillCatalogueSources;
+}
+
 export interface OccupationSkillsInput {
   /**
      * @minItems 0

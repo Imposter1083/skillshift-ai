@@ -39,7 +39,8 @@ import type {
   ListJobsParams,
   OccupationEvidenceResult,
   OccupationSkillsInput,
-  SearchJobsParams
+  SearchJobsParams,
+  SkillCatalogue
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1135,4 +1136,82 @@ export const useMatchOccupationEvidence = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getMatchOccupationEvidenceMutationOptions(options));
     }
+
+export const getGetSkillCatalogueUrl = () => {
+
+
+
+
+  return `/api/skills/catalogue`
+}
+
+/**
+ * Official O*NET skill elements and dataset skills, with SkillShift browsing facets and SkillShift-reviewed aliases. Aliases and facets are not official classifications.
+ * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+ */
+export const getSkillCatalogue = async ( options?: Parameters<typeof customFetch>[1]): Promise<SkillCatalogue> => {
+
+  return customFetch<SkillCatalogue>(getGetSkillCatalogueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSkillCatalogueQueryKey = () => {
+    return [
+    `/api/skills/catalogue`
+    ] as const;
+    }
+
+
+export const getGetSkillCatalogueQueryOptions = <TData = Awaited<ReturnType<typeof getSkillCatalogue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSkillCatalogueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSkillCatalogue>>> = ({ signal }) => getSkillCatalogue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSkillCatalogueQueryResult = NonNullable<Awaited<ReturnType<typeof getSkillCatalogue>>>
+export type GetSkillCatalogueQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+ */
+
+export function useGetSkillCatalogue<TData = Awaited<ReturnType<typeof getSkillCatalogue>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSkillCatalogueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
