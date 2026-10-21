@@ -104,7 +104,7 @@ function relatedSkillTarget(
   rawSkill: string,
 ): string | undefined {
   const normalized = normalizeSkill(rawSkill);
-  const known = new Set(dataset.allSkills);
+  const known = knownSkills(dataset);
   return RELATED_SKILL_RULES.find((rule) =>
     known.has(rule.datasetSkill) &&
     (rule.aliases.includes(normalized) || rule.pattern.test(normalized)),
@@ -230,6 +230,17 @@ export const SCORING = {
     "The score measures overlap with this dataset only. It is not a probability of getting a job, and it is not Malaysia-specific.",
 } as const;
 
+const knownSkillSets = new WeakMap<CareerDataset, ReadonlySet<string>>();
+
+function knownSkills(dataset: CareerDataset): ReadonlySet<string> {
+  let known = knownSkillSets.get(dataset);
+  if (!known) {
+    known = new Set(dataset.allSkills);
+    knownSkillSets.set(dataset, known);
+  }
+  return known;
+}
+
 export function matchSkills(
   dataset: CareerDataset,
   rawSkills: string[],
@@ -242,14 +253,15 @@ export function matchSkills(
   const normalizedSkills = [
     ...new Set(rawSkills.map(normalizeSkill).filter((s) => s.length > 0)),
   ];
-  const known = new Set(dataset.allSkills);
+  const known = knownSkills(dataset);
   const unrecognizedSkills = normalizedSkills.filter((s) => !known.has(s));
   const provided = new Set(normalizedSkills);
 
   const matches: CareerMatch[] = dataset.roles
     .map((role) => {
-      const matchedSkills = role.skills.filter((s) => provided.has(s));
-      const missingSkills = role.skills.filter((s) => !provided.has(s));
+      const matchedSkills: string[] = [];
+      const missingSkills: string[] = [];
+      for (const s of role.skills) (provided.has(s) ? matchedSkills : missingSkills).push(s);
       const skillsConsidered = role.skills.length;
       return {
         roleFamily: role.roleFamily,
@@ -292,7 +304,7 @@ export function matchProfileSkills(
     if (normalized && !inputs.has(normalized)) inputs.set(normalized, display);
   }
 
-  const known = new Set(dataset.allSkills);
+  const known = knownSkills(dataset);
   const candidates: SkillMapping[] = [];
   for (const [normalized, profileSkill] of inputs.entries()) {
     if (known.has(normalized)) {

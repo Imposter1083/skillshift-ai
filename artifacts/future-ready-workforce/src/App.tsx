@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { Link, Route, Switch } from 'wouter';
 import { ArrowRight } from 'lucide-react';
 
@@ -23,7 +23,8 @@ const JobSearchPage = lazy(() => import('@/components/job-search-page'));
 const JobDetailsPage = lazy(() => import('@/components/job-details-page'));
 
 function useProfileSkillNames() {
-  return useWorkspace().profile.skills.map(s => s.name);
+  const { skills } = useWorkspace().profile;
+  return useMemo(() => skills.map(s => s.name), [skills]);
 }
 function JobsRoute() {
   const skills = useProfileSkillNames();

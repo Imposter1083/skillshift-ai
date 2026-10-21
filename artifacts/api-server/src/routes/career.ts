@@ -62,8 +62,12 @@ router.post("/career/cv-skills", (req, res, next) => {
   }
 });
 
+// The skill list never changes at runtime, so validate it once.
+let skillsResponse: ReturnType<typeof ListCareerSkillsResponse.parse> | undefined;
+
 router.get("/career/skills", (_req, res): void => {
-  res.json(ListCareerSkillsResponse.parse({ skills: careerDataset.allSkills }));
+  skillsResponse ??= ListCareerSkillsResponse.parse({ skills: careerDataset.allSkills });
+  res.json(skillsResponse);
 });
 
 router.post("/career/match", (req, res): void => {

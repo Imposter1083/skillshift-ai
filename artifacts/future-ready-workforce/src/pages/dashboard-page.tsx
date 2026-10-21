@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { Link } from 'wouter';
-import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { ArrowRight, Compass, FlaskConical, Info, UserRound, Users, Workflow } from 'lucide-react';
 import { useWorkspace } from '@/domain/workspace-context';
 import { aggregateRecords, audienceLabels, demoRoles, sdgGoals, sdgMappings } from '@/domain/demo-data';
 import { assessRole, rankCareers } from '@/domain/services';
 import { Bar, GapStatus, PageHead, PriorityTag, SectionTitle, SkillMeter } from '@/components/workspace/ui';
+
+// recharts is large; loading it separately keeps it out of the initial bundle.
+const CohortRadarChart = lazy(() => import('@/components/workspace/radar-charts').then(m => ({ default: m.CohortRadarChart })));
+const PersonalRadarChart = lazy(() => import('@/components/workspace/radar-charts').then(m => ({ default: m.PersonalRadarChart })));
 
 function AggregateOverview() {
   const { state } = useWorkspace();
@@ -62,15 +65,7 @@ function AggregateOverview() {
         <SectionTitle title="Cohort skill profile" note="FIVE MOST-LISTED SKILLS · SYNTHETIC RECORDS" />
         {cohortRadar.length === 5 ? <>
           <div className="personal-radar-chart" role="img" aria-label="Five-axis radar chart of average listed proficiency across synthetic cohort records" data-testid="chart-cohort-skills">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={cohortRadar} outerRadius="68%">
-                <PolarGrid stroke="#dce5ef" />
-                <PolarAngleAxis dataKey="skill" tick={{ fill: '#60748b', fontSize: 10 }} />
-                <PolarRadiusAxis domain={[0, 5]} tickCount={6} axisLine={false} tick={{ fill: '#8796a8', fontSize: 8 }} />
-                <Tooltip isAnimationActive={false} formatter={value => `${Number(value).toFixed(1)}/5`} />
-                <Radar name="Average listed proficiency" dataKey="average" type="natural" stroke="#1674d1" fill="#1674d1" fillOpacity={0.2} isAnimationActive={false} />
-              </RadarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={null}><CohortRadarChart data={cohortRadar} /></Suspense>
           </div>
           <p className="muted small radar-note">Averages include only records that list each skill. Missing skills are not counted as zero; this is a fictional cohort example, not a workforce measurement.</p>
           <ul className="radar-text-summary" aria-label="Text summary of cohort skill profile">
@@ -182,16 +177,7 @@ function PersonalOverview() {
         <SectionTitle title="Skill profile & sample target" note="FIVE SKILLS FROM YOUR TOP-RANKED ROLES" />
         {radarSkills.length === 5 ? <>
           <div className="personal-radar-chart" role="img" aria-label="Five-axis comparison of listed profile skill levels and sample role requirements" data-testid="chart-personal-skills">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarSkills} outerRadius="68%">
-                <PolarGrid stroke="#dce5ef" />
-                <PolarAngleAxis dataKey="skill" tick={{ fill: '#60748b', fontSize: 10 }} />
-                <PolarRadiusAxis domain={[0, 5]} tickCount={6} axisLine={false} tick={{ fill: '#8796a8', fontSize: 8 }} />
-                <Tooltip isAnimationActive={false} formatter={(value, name, item) => [item.payload.listed || name === 'Sample target' ? `${value}/5` : 'Not listed · drawn at 0/5', name]} />
-                <Radar name="Your listed level" dataKey="profile" type="natural" stroke="#1674d1" fill="#1674d1" fillOpacity={0.24} isAnimationActive={false} />
-                <Radar name="Sample target" dataKey="target" type="natural" stroke="#7892ad" fill="#7892ad" fillOpacity={0.08} isAnimationActive={false} />
-              </RadarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={null}><PersonalRadarChart data={radarSkills} /></Suspense>
           </div>
           <div className="radar-legend"><span><i className="radar-dot current" /> Your listed level</span><span><i className="radar-dot sample" /> Sample target</span></div>
           <p className="muted small radar-note">A skill absent from your profile is “not listed,” not evidence of no ability. For chart geometry only, it is drawn at 0; level your profile to refine this illustrative comparison.</p>
