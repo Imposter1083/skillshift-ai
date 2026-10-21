@@ -20,7 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiAnnouncementsResponse,
   CareerMatchResult,
+  CareerPathAnalysisReport,
   CareerSkillList,
   CareerSkillsInput,
   CvSkillExtraction,
@@ -37,10 +39,13 @@ import type {
   JobMatchScores,
   JobPage,
   ListJobsParams,
-  OccupationEvidenceResult,
-  OccupationSkillsInput,
+  ProfileSimilarityReport,
+  ResumeAnalysisReport,
+  ResumeTextInput,
   SearchJobsParams,
-  SkillCatalogue
+  SkillFrequenciesResponse,
+  SkillGapAnalysisInput,
+  SkillGapAnalysisReport
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -235,7 +240,7 @@ export const getExtractCvSkillsUrl = () => {
 }
 
 /**
- * PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
+ * PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Exact skill names and reviewed related phrases are suggested for review; profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
  * @summary Extract dataset skills and labelled profile details from an in-memory CV
  */
 export const extractCvSkills = async (cvUploadInput: CvUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<CvSkillExtraction> => {
@@ -312,7 +317,7 @@ export const getMatchCareersUrl = () => {
 }
 
 /**
- * Compares the supplied skills (normalized, exact-name matching) with each role family's 30 listed skills. Score = matched skills / 30 x 100. This is dataset skill overlap, not a probability of employment.
+ * Compares the supplied profile skills with each role family's 30 listed skills using exact names and a small reviewed set of related phrase aliases. The response identifies exact versus related mappings. Score = matched dataset skills / 30 x 100. This is dataset skill overlap, not a probability of employment.
  * @summary Rank role families by dataset skill overlap
  */
 export const matchCareers = async (careerSkillsInput: CareerSkillsInput, options?: Parameters<typeof customFetch>[1]): Promise<CareerMatchResult> => {
@@ -390,6 +395,362 @@ export const useMatchCareers = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getMatchCareersMutationOptions(options));
+    }
+
+export const getAnalyzeResumeUrl = () => {
+
+
+
+
+  return `/api/analyze-resume`
+}
+
+/**
+ * Uses exact skill names and a small reviewed set of related phrase mappings with the bundled role-skill dataset. Resume text is processed in memory and is not retained or sent to external services. This endpoint does not run an ML model or generate a validated readiness score.
+ * @summary Analyze resume text using local deterministic skill detection
+ */
+export const analyzeResume = async (resumeTextInput: ResumeTextInput, options?: Parameters<typeof customFetch>[1]): Promise<ResumeAnalysisReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ResumeAnalysisReport>(getAnalyzeResumeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resumeTextInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeResumeMutationKey = () => ['analyzeResume'] as const;
+
+export const getAnalyzeResumeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeResume>>, TError,AnalyzeResumeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeResume>>, TError,AnalyzeResumeMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeResumeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeResume>>, AnalyzeResumeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeResume(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeResumeMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeResume>>>
+    export type AnalyzeResumeMutationBody = BodyType<ResumeTextInput>
+    export type AnalyzeResumeMutationError = ErrorType<ErrorResponse>
+    export type AnalyzeResumeMutationVariables = {data: BodyType<ResumeTextInput>}
+
+    /**
+ * @summary Analyze resume text using local deterministic skill detection
+ */
+export const useAnalyzeResume = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeResume>>, TError,AnalyzeResumeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeResume>>,
+        TError,
+        AnalyzeResumeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeResumeMutationOptions(options));
+    }
+
+export const getAnalyzeSkillGapUrl = () => {
+
+
+
+
+  return `/api/skill-gap-analysis`
+}
+
+/**
+ * Returns exact and reviewed related-skill overlap and missing role skills, with resources from a small reviewed catalog of official provider courses. Skills with no verified resource are explicitly identified by the empty catalog status.
+ * @summary Compare resume skills with one bundled role family
+ */
+export const analyzeSkillGap = async (skillGapAnalysisInput: SkillGapAnalysisInput, options?: Parameters<typeof customFetch>[1]): Promise<SkillGapAnalysisReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SkillGapAnalysisReport>(getAnalyzeSkillGapUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(skillGapAnalysisInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeSkillGapMutationKey = () => ['analyzeSkillGap'] as const;
+
+export const getAnalyzeSkillGapMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeSkillGap>>, TError,AnalyzeSkillGapMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeSkillGap>>, TError,AnalyzeSkillGapMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeSkillGapMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeSkillGap>>, AnalyzeSkillGapMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeSkillGap(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeSkillGapMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeSkillGap>>>
+    export type AnalyzeSkillGapMutationBody = BodyType<SkillGapAnalysisInput>
+    export type AnalyzeSkillGapMutationError = ErrorType<ErrorResponse>
+    export type AnalyzeSkillGapMutationVariables = {data: BodyType<SkillGapAnalysisInput>}
+
+    /**
+ * @summary Compare resume skills with one bundled role family
+ */
+export const useAnalyzeSkillGap = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeSkillGap>>, TError,AnalyzeSkillGapMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeSkillGap>>,
+        TError,
+        AnalyzeSkillGapMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeSkillGapMutationOptions(options));
+    }
+
+export const getAnalyzeCareerPathUrl = () => {
+
+
+
+
+  return `/api/career-path`
+}
+
+/**
+ * Uses deterministic skill matching with exact names and reviewed related phrase mappings. The score is not a confidence score, suitability prediction, or employment probability.
+ * @summary Rank role families and list illustrative next skills
+ */
+export const analyzeCareerPath = async (resumeTextInput: ResumeTextInput, options?: Parameters<typeof customFetch>[1]): Promise<CareerPathAnalysisReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CareerPathAnalysisReport>(getAnalyzeCareerPathUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resumeTextInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeCareerPathMutationKey = () => ['analyzeCareerPath'] as const;
+
+export const getAnalyzeCareerPathMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCareerPath>>, TError,AnalyzeCareerPathMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeCareerPath>>, TError,AnalyzeCareerPathMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeCareerPathMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeCareerPath>>, AnalyzeCareerPathMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeCareerPath(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeCareerPathMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeCareerPath>>>
+    export type AnalyzeCareerPathMutationBody = BodyType<ResumeTextInput>
+    export type AnalyzeCareerPathMutationError = ErrorType<ErrorResponse>
+    export type AnalyzeCareerPathMutationVariables = {data: BodyType<ResumeTextInput>}
+
+    /**
+ * @summary Rank role families and list illustrative next skills
+ */
+export const useAnalyzeCareerPath = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCareerPath>>, TError,AnalyzeCareerPathMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeCareerPath>>,
+        TError,
+        AnalyzeCareerPathMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeCareerPathMutationOptions(options));
+    }
+
+export const getAnalyzeProfileSimilarityUrl = () => {
+
+
+
+
+  return `/api/profile-similarity`
+}
+
+/**
+ * The bundled dataset contains role skill lists but no candidate profiles. The endpoint therefore returns no similar profiles and explains the limitation rather than fabricating peer records.
+ * @summary Return available profile-similarity information
+ */
+export const analyzeProfileSimilarity = async (resumeTextInput: ResumeTextInput, options?: Parameters<typeof customFetch>[1]): Promise<ProfileSimilarityReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProfileSimilarityReport>(getAnalyzeProfileSimilarityUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resumeTextInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeProfileSimilarityMutationKey = () => ['analyzeProfileSimilarity'] as const;
+
+export const getAnalyzeProfileSimilarityMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeProfileSimilarity>>, TError,AnalyzeProfileSimilarityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeProfileSimilarity>>, TError,AnalyzeProfileSimilarityMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeProfileSimilarityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeProfileSimilarity>>, AnalyzeProfileSimilarityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeProfileSimilarity(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeProfileSimilarityMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeProfileSimilarity>>>
+    export type AnalyzeProfileSimilarityMutationBody = BodyType<ResumeTextInput>
+    export type AnalyzeProfileSimilarityMutationError = ErrorType<ErrorResponse>
+    export type AnalyzeProfileSimilarityMutationVariables = {data: BodyType<ResumeTextInput>}
+
+    /**
+ * @summary Return available profile-similarity information
+ */
+export const useAnalyzeProfileSimilarity = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeProfileSimilarity>>, TError,AnalyzeProfileSimilarityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeProfileSimilarity>>,
+        TError,
+        AnalyzeProfileSimilarityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeProfileSimilarityMutationOptions(options));
     }
 
 export const getListJobsUrl = (params?: ListJobsParams,) => {
@@ -1048,110 +1409,21 @@ export const useRefreshDosmLabourForce = <TError = ErrorType<ErrorResponse>,
       return useMutation(getRefreshDosmLabourForceMutationOptions(options));
     }
 
-export const getMatchOccupationEvidenceUrl = () => {
+export const getGetAiAnnouncementsUrl = () => {
 
 
 
 
-  return `/api/occupations/match`
+  return `/api/signals/ai-announcements`
 }
 
 /**
- * Returns the reviewed MyCOL 2024/2025 occupations, their MASCO-to-O*NET mappings and the O*NET 31.0 skills documented for each mapped occupation, with exact normalized overlap against the supplied skills. MyCOL status is a TalentCorp classification and O*NET is United States reference data; neither is a hiring probability or a measure of Malaysian demand. Unverified mappings and occupations without O*NET skill ratings are returned but excluded from recommendations.
- * @summary Compare profile skills with O*NET skills for mapped MyCOL critical occupations
+ * Qualitative, dated announcements read from the public listing page. Not skill-demand data.
+ * @summary AI-related Ministry of Digital press releases
  */
-export const matchOccupationEvidence = async (occupationSkillsInput: OccupationSkillsInput, options?: Parameters<typeof customFetch>[1]): Promise<OccupationEvidenceResult> => {
+export const getAiAnnouncements = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiAnnouncementsResponse> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<OccupationEvidenceResult>(getMatchOccupationEvidenceUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(occupationSkillsInput)
-  }
-);}
-
-
-
-
-
-export const getMatchOccupationEvidenceMutationKey = () => ['matchOccupationEvidence'] as const;
-
-export const getMatchOccupationEvidenceMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchOccupationEvidence>>, TError,MatchOccupationEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof matchOccupationEvidence>>, TError,MatchOccupationEvidenceMutationVariables, TContext> => {
-
-const mutationKey = getMatchOccupationEvidenceMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchOccupationEvidence>>, MatchOccupationEvidenceMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  matchOccupationEvidence(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type MatchOccupationEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof matchOccupationEvidence>>>
-    export type MatchOccupationEvidenceMutationBody = BodyType<OccupationSkillsInput>
-    export type MatchOccupationEvidenceMutationError = ErrorType<ErrorResponse>
-    export type MatchOccupationEvidenceMutationVariables = {data: BodyType<OccupationSkillsInput>}
-
-    /**
- * @summary Compare profile skills with O*NET skills for mapped MyCOL critical occupations
- */
-export const useMatchOccupationEvidence = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchOccupationEvidence>>, TError,MatchOccupationEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof matchOccupationEvidence>>,
-        TError,
-        MatchOccupationEvidenceMutationVariables,
-        TContext
-      > => {
-      return useMutation(getMatchOccupationEvidenceMutationOptions(options));
-    }
-
-export const getGetSkillCatalogueUrl = () => {
-
-
-
-
-  return `/api/skills/catalogue`
-}
-
-/**
- * Official O*NET skill elements and dataset skills, with SkillShift browsing facets and SkillShift-reviewed aliases. Aliases and facets are not official classifications.
- * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
- */
-export const getSkillCatalogue = async ( options?: Parameters<typeof customFetch>[1]): Promise<SkillCatalogue> => {
-
-  return customFetch<SkillCatalogue>(getGetSkillCatalogueUrl(),
+  return customFetch<AiAnnouncementsResponse>(getGetAiAnnouncementsUrl(),
   {
     ...options,
     method: 'GET'
@@ -1164,45 +1436,196 @@ export const getSkillCatalogue = async ( options?: Parameters<typeof customFetch
 
 
 
-export const getGetSkillCatalogueQueryKey = () => {
+export const getGetAiAnnouncementsQueryKey = () => {
     return [
-    `/api/skills/catalogue`
+    `/api/signals/ai-announcements`
     ] as const;
     }
 
 
-export const getGetSkillCatalogueQueryOptions = <TData = Awaited<ReturnType<typeof getSkillCatalogue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAiAnnouncementsQueryOptions = <TData = Awaited<ReturnType<typeof getAiAnnouncements>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetSkillCatalogueQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAiAnnouncementsQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSkillCatalogue>>> = ({ signal }) => getSkillCatalogue({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiAnnouncements>>> = ({ signal }) => getAiAnnouncements({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiAnnouncements>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetSkillCatalogueQueryResult = NonNullable<Awaited<ReturnType<typeof getSkillCatalogue>>>
-export type GetSkillCatalogueQueryError = ErrorType<unknown>
+export type GetAiAnnouncementsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiAnnouncements>>>
+export type GetAiAnnouncementsQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+ * @summary AI-related Ministry of Digital press releases
  */
 
-export function useGetSkillCatalogue<TData = Awaited<ReturnType<typeof getSkillCatalogue>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetAiAnnouncements<TData = Awaited<ReturnType<typeof getAiAnnouncements>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetSkillCatalogueQueryOptions(options)
+  const queryOptions = getGetAiAnnouncementsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRefreshAiAnnouncementsUrl = () => {
+
+
+
+
+  return `/api/signals/ai-announcements/refresh`
+}
+
+/**
+ * @summary Re-request the Ministry of Digital listing
+ */
+export const refreshAiAnnouncements = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiAnnouncementsResponse> => {
+
+  return customFetch<AiAnnouncementsResponse>(getRefreshAiAnnouncementsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshAiAnnouncementsMutationKey = () => ['refreshAiAnnouncements'] as const;
+
+export const getRefreshAiAnnouncementsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAiAnnouncements>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshAiAnnouncements>>, TError,void, TContext> => {
+
+const mutationKey = getRefreshAiAnnouncementsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAiAnnouncements>>, void> = () => {
+
+
+          return  refreshAiAnnouncements(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshAiAnnouncementsMutationResult = NonNullable<Awaited<ReturnType<typeof refreshAiAnnouncements>>>
+
+    export type RefreshAiAnnouncementsMutationError = ErrorType<ErrorResponse>
+
+
+    /**
+ * @summary Re-request the Ministry of Digital listing
+ */
+export const useRefreshAiAnnouncements = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAiAnnouncements>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshAiAnnouncements>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshAiAnnouncementsMutationOptions(options));
+    }
+
+export const getGetSkillFrequenciesUrl = () => {
+
+
+
+
+  return `/api/signals/skill-frequencies`
+}
+
+/**
+ * @summary Qarera global job-posting skill frequencies by role family
+ */
+export const getSkillFrequencies = async ( options?: Parameters<typeof customFetch>[1]): Promise<SkillFrequenciesResponse> => {
+
+  return customFetch<SkillFrequenciesResponse>(getGetSkillFrequenciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSkillFrequenciesQueryKey = () => {
+    return [
+    `/api/signals/skill-frequencies`
+    ] as const;
+    }
+
+
+export const getGetSkillFrequenciesQueryOptions = <TData = Awaited<ReturnType<typeof getSkillFrequencies>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillFrequencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSkillFrequenciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSkillFrequencies>>> = ({ signal }) => getSkillFrequencies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSkillFrequencies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSkillFrequenciesQueryResult = NonNullable<Awaited<ReturnType<typeof getSkillFrequencies>>>
+export type GetSkillFrequenciesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Qarera global job-posting skill frequencies by role family
+ */
+
+export function useGetSkillFrequencies<TData = Awaited<ReturnType<typeof getSkillFrequencies>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSkillFrequencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSkillFrequenciesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

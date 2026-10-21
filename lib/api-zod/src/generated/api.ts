@@ -27,7 +27,7 @@ export const ListCareerSkillsResponse = zod.object({
 
 
 /**
- * PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
+ * PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Exact skill names and reviewed related phrases are suggested for review; profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
  * @summary Extract dataset skills and labelled profile details from an in-memory CV
  */
 export const ExtractCvSkillsBody = zod.object({
@@ -80,7 +80,7 @@ export const ExtractCvSkillsResponse = zod.object({
 
 
 /**
- * Compares the supplied skills (normalized, exact-name matching) with each role family's 30 listed skills. Score = matched skills / 30 x 100. This is dataset skill overlap, not a probability of employment.
+ * Compares the supplied profile skills with each role family's 30 listed skills using exact names and a small reviewed set of related phrase aliases. The response identifies exact versus related mappings. Score = matched dataset skills / 30 x 100. This is dataset skill overlap, not a probability of employment.
  * @summary Rank role families by dataset skill overlap
  */
 export const matchCareersBodySkillsItemMax = 60;
@@ -103,11 +103,284 @@ export const MatchCareersResponse = zod.object({
 })),
   "normalizedSkills": zod.array(zod.string()),
   "unrecognizedSkills": zod.array(zod.string()),
+  "skillMappings": zod.array(zod.object({
+  "profileSkill": zod.string(),
+  "datasetSkill": zod.string(),
+  "matchType": zod.enum(['exact', 'related'])
+})),
   "scoring": zod.object({
   "label": zod.string(),
   "formula": zod.string(),
   "note": zod.string()
 }),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "publisher": zod.string(),
+  "period": zod.string(),
+  "license": zod.string(),
+  "citation": zod.string(),
+  "urls": zod.array(zod.string()),
+  "intendedUse": zod.string(),
+  "geographyNote": zod.string(),
+  "measurementNote": zod.string()
+})
+})
+
+
+/**
+ * Uses exact skill names and a small reviewed set of related phrase mappings with the bundled role-skill dataset. Resume text is processed in memory and is not retained or sent to external services. This endpoint does not run an ML model or generate a validated readiness score.
+ * @summary Analyze resume text using local deterministic skill detection
+ */
+export const analyzeResumeBodyResumeTextMax = 200000;
+
+
+
+export const AnalyzeResumeBody = zod.object({
+  "resume_text": zod.string().min(1).max(analyzeResumeBodyResumeTextMax)
+})
+
+export const analyzeResumeResponseProfileSuggestionsOccupationMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsExperienceYearsMin = 0;
+export const analyzeResumeResponseProfileSuggestionsExperienceYearsMax = 60;
+
+export const analyzeResumeResponseProfileSuggestionsEducationMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsQualificationMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsStudyFieldMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsInterestsItemMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsInterestsMax = 10;
+
+export const analyzeResumeResponseProfileSuggestionsLocationMax = 120;
+
+export const analyzeResumeResponseProfileSuggestionsLearningHoursMax = 40;
+
+export const analyzeResumeResponseProfileSuggestionsBudgetMYRMin = 0;
+export const analyzeResumeResponseProfileSuggestionsBudgetMYRMax = 100000;
+
+export const analyzeResumeResponseProfileSuggestionsGoalsMax = 500;
+
+
+
+export const AnalyzeResumeResponse = zod.object({
+  "recognized_skills": zod.array(zod.string()),
+  "technical_skills": zod.array(zod.string()),
+  "soft_skills": zod.array(zod.string()),
+  "missing_skills": zod.array(zod.string()),
+  "emerging_skills": zod.array(zod.string()),
+  "recommended_learning_path": zod.array(zod.string()),
+  "skill_score": zod.number().nullable(),
+  "career_readiness": zod.string(),
+  "candidate_level": zod.string().nullable(),
+  "similar_profiles": zod.array(zod.string()),
+  "profile_suggestions": zod.object({
+  "occupation": zod.string().max(analyzeResumeResponseProfileSuggestionsOccupationMax).optional(),
+  "experienceYears": zod.number().min(analyzeResumeResponseProfileSuggestionsExperienceYearsMin).max(analyzeResumeResponseProfileSuggestionsExperienceYearsMax).optional(),
+  "education": zod.string().max(analyzeResumeResponseProfileSuggestionsEducationMax).optional(),
+  "qualification": zod.string().max(analyzeResumeResponseProfileSuggestionsQualificationMax).optional(),
+  "studyField": zod.string().max(analyzeResumeResponseProfileSuggestionsStudyFieldMax).optional(),
+  "interests": zod.array(zod.string().max(analyzeResumeResponseProfileSuggestionsInterestsItemMax)).max(analyzeResumeResponseProfileSuggestionsInterestsMax).optional(),
+  "location": zod.string().max(analyzeResumeResponseProfileSuggestionsLocationMax).optional(),
+  "workPreference": zod.enum(['Any', 'Remote', 'Hybrid', 'On-site']).optional(),
+  "learningHours": zod.number().int().min(1).max(analyzeResumeResponseProfileSuggestionsLearningHoursMax).optional(),
+  "budgetMYR": zod.number().min(analyzeResumeResponseProfileSuggestionsBudgetMYRMin).max(analyzeResumeResponseProfileSuggestionsBudgetMYRMax).optional(),
+  "goals": zod.string().max(analyzeResumeResponseProfileSuggestionsGoalsMax).optional()
+}),
+  "methodology": zod.string(),
+  "limitations": zod.array(zod.string()),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "publisher": zod.string(),
+  "period": zod.string(),
+  "license": zod.string(),
+  "citation": zod.string(),
+  "urls": zod.array(zod.string()),
+  "intendedUse": zod.string(),
+  "geographyNote": zod.string(),
+  "measurementNote": zod.string()
+})
+})
+
+
+/**
+ * Returns exact and reviewed related-skill overlap and missing role skills, with resources from a small reviewed catalog of official provider courses. Skills with no verified resource are explicitly identified by the empty catalog status.
+ * @summary Compare resume skills with one bundled role family
+ */
+export const analyzeSkillGapBodyResumeTextMax = 200000;
+
+export const analyzeSkillGapBodyTargetRoleMax = 120;
+
+
+
+export const AnalyzeSkillGapBody = zod.object({
+  "resume_text": zod.string().min(1).max(analyzeSkillGapBodyResumeTextMax),
+  "target_role": zod.string().min(1).max(analyzeSkillGapBodyTargetRoleMax)
+})
+
+
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansAiMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansAiMax = 5;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansMlMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansMlMax = 5;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansDeepLearningMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansDeepLearningMax = 5;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansGenerativeAiMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansGenerativeAiMax = 5;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansPromptEngineeringMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansPromptEngineeringMax = 5;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansLlmExperienceYearsMin = 0;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesRagPercentMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesRagPercentMax = 100;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesFineTuningPercentMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesFineTuningPercentMax = 100;
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesVectorDatabasePercentMin = 0;
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesVectorDatabasePercentMax = 100;
+
+
+export const analyzeSkillGapResponseSyntheticAiSkillReferenceSourceRowsExcludedMissingRoleMin = 0;
+
+
+
+export const AnalyzeSkillGapResponse = zod.object({
+  "target_role": zod.string(),
+  "current_skills": zod.array(zod.string()),
+  "missing_skills": zod.array(zod.string()),
+  "recommended_courses": zod.array(zod.string()),
+  "recommended_learning_path": zod.array(zod.string()),
+  "estimated_learning_time": zod.string().nullable().describe('Sum of provider-listed durations for returned resources; null when none are available.'),
+  "overlap_score": zod.number(),
+  "methodology": zod.string(),
+  "limitations": zod.array(zod.string()),
+  "learning_resources": zod.object({
+  "status": zod.enum(['available', 'none_verified']),
+  "catalog": zod.object({
+  "reviewed_at": zod.coerce.date(),
+  "sources": zod.array(zod.object({
+  "provider": zod.string(),
+  "url": zod.string().url()
+}))
+}),
+  "resources": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "provider": zod.string(),
+  "url": zod.string().url(),
+  "skills": zod.array(zod.string()),
+  "duration_minutes": zod.number().int().min(1),
+  "duration_label": zod.string(),
+  "prerequisites": zod.array(zod.string()),
+  "recommended_prerequisites": zod.array(zod.string()),
+  "cost": zod.enum(['Free']),
+  "cost_source_url": zod.string().url()
+}))
+}),
+  "synthetic_ai_skill_reference": zod.object({
+  "references": zod.array(zod.object({
+  "role": zod.string(),
+  "sampleSize": zod.number().int().min(1),
+  "means": zod.object({
+  "ai": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansAiMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansAiMax),
+  "ml": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansMlMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansMlMax),
+  "deepLearning": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansDeepLearningMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansDeepLearningMax),
+  "generativeAi": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansGenerativeAiMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansGenerativeAiMax),
+  "promptEngineering": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansPromptEngineeringMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansPromptEngineeringMax),
+  "llmExperienceYears": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemMeansLlmExperienceYearsMin)
+}),
+  "experienceShares": zod.object({
+  "ragPercent": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesRagPercentMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesRagPercentMax),
+  "fineTuningPercent": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesFineTuningPercentMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesFineTuningPercentMax),
+  "vectorDatabasePercent": zod.number().min(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesVectorDatabasePercentMin).max(analyzeSkillGapResponseSyntheticAiSkillReferenceReferencesItemExperienceSharesVectorDatabasePercentMax)
+})
+})),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "dataRowsIncluded": zod.number().int().min(1),
+  "rowsExcludedMissingRole": zod.number().int().min(analyzeSkillGapResponseSyntheticAiSkillReferenceSourceRowsExcludedMissingRoleMin),
+  "provenance": zod.string()
+}),
+  "limitations": zod.array(zod.string())
+}),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "publisher": zod.string(),
+  "period": zod.string(),
+  "license": zod.string(),
+  "citation": zod.string(),
+  "urls": zod.array(zod.string()),
+  "intendedUse": zod.string(),
+  "geographyNote": zod.string(),
+  "measurementNote": zod.string()
+})
+})
+
+
+/**
+ * Uses deterministic skill matching with exact names and reviewed related phrase mappings. The score is not a confidence score, suitability prediction, or employment probability.
+ * @summary Rank role families and list illustrative next skills
+ */
+export const analyzeCareerPathBodyResumeTextMax = 200000;
+
+
+
+export const AnalyzeCareerPathBody = zod.object({
+  "resume_text": zod.string().min(1).max(analyzeCareerPathBodyResumeTextMax)
+})
+
+export const AnalyzeCareerPathResponse = zod.object({
+  "suitable_roles": zod.array(zod.object({
+  "roleFamily": zod.string(),
+  "score": zod.number().describe('Matched skills / skills considered x 100, rounded to one decimal place.'),
+  "skillsConsidered": zod.number().int(),
+  "matchedSkills": zod.array(zod.string()),
+  "missingSkills": zod.array(zod.string())
+})),
+  "growth_path": zod.array(zod.string()),
+  "methodology": zod.string(),
+  "limitations": zod.array(zod.string()),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "publisher": zod.string(),
+  "period": zod.string(),
+  "license": zod.string(),
+  "citation": zod.string(),
+  "urls": zod.array(zod.string()),
+  "intendedUse": zod.string(),
+  "geographyNote": zod.string(),
+  "measurementNote": zod.string()
+})
+})
+
+
+/**
+ * The bundled dataset contains role skill lists but no candidate profiles. The endpoint therefore returns no similar profiles and explains the limitation rather than fabricating peer records.
+ * @summary Return available profile-similarity information
+ */
+export const analyzeProfileSimilarityBodyResumeTextMax = 200000;
+
+
+
+export const AnalyzeProfileSimilarityBody = zod.object({
+  "resume_text": zod.string().min(1).max(analyzeProfileSimilarityBodyResumeTextMax)
+})
+
+export const AnalyzeProfileSimilarityResponse = zod.object({
+  "similar_profiles": zod.array(zod.string()),
+  "common_skills": zod.array(zod.string()),
+  "recommended_next_skills": zod.array(zod.string()),
+  "methodology": zod.string(),
+  "limitations": zod.array(zod.string()),
   "source": zod.object({
   "datasetName": zod.string(),
   "publisher": zod.string(),
@@ -500,154 +773,83 @@ export const RefreshDosmLabourForceResponse = zod.object({
 
 
 /**
- * Returns the reviewed MyCOL 2024/2025 occupations, their MASCO-to-O*NET mappings and the O*NET 31.0 skills documented for each mapped occupation, with exact normalized overlap against the supplied skills. MyCOL status is a TalentCorp classification and O*NET is United States reference data; neither is a hiring probability or a measure of Malaysian demand. Unverified mappings and occupations without O*NET skill ratings are returned but excluded from recommendations.
- * @summary Compare profile skills with O*NET skills for mapped MyCOL critical occupations
+ * Qualitative, dated announcements read from the public listing page. Not skill-demand data.
+ * @summary AI-related Ministry of Digital press releases
  */
-export const matchOccupationEvidenceBodySkillsItemMax = 60;
-
-export const matchOccupationEvidenceBodySkillsMin = 0;
-export const matchOccupationEvidenceBodySkillsMax = 50;
-
-
-
-export const MatchOccupationEvidenceBody = zod.object({
-  "skills": zod.array(zod.string().min(1).max(matchOccupationEvidenceBodySkillsItemMax)).min(matchOccupationEvidenceBodySkillsMin).max(matchOccupationEvidenceBodySkillsMax)
-})
-
-export const MatchOccupationEvidenceResponse = zod.object({
-  "normalizedSkills": zod.array(zod.string()),
-  "selectionRule": zod.string(),
-  "scoring": zod.string(),
-  "sources": zod.object({
-  "mycol": zod.object({
-  "edition": zod.string(),
+export const GetAiAnnouncementsResponse = zod.object({
+  "items": zod.array(zod.object({
   "title": zod.string(),
-  "publisher": zod.string(),
-  "landingUrl": zod.string(),
-  "reportUrl": zod.string(),
-  "reportSha256": zod.string(),
-  "referencePeriod": zod.string(),
-  "publicationDate": zod.string().nullable().describe('Not stated in the report; null is intentional.'),
-  "classification": zod.string(),
-  "listReference": zod.string(),
-  "totalOccupationsListed": zod.number().int(),
-  "reviewedAt": zod.string(),
-  "scopeNote": zod.string(),
-  "masco6Note": zod.string()
-}),
-  "onet": zod.object({
-  "name": zod.string(),
-  "release": zod.string(),
-  "releaseDate": zod.string(),
-  "taxonomy": zod.string(),
-  "databaseUrl": zod.string(),
-  "releasesUrl": zod.string(),
-  "license": zod.string(),
-  "licenseUrl": zod.string(),
-  "licensePageUrl": zod.string(),
-  "attribution": zod.string(),
-  "modifications": zod.string(),
-  "files": zod.array(zod.object({
-  "name": zod.string(),
-  "url": zod.string(),
-  "sha256": zod.string()
+  "publishedOn": zod.coerce.date(),
+  "category": zod.string().nullable(),
+  "url": zod.string().url(),
+  "source": zod.string()
 })),
-  "scales": zod.object({
-  "importance": zod.object({
-  "id": zod.string(),
+  "source": zod.object({
   "name": zod.string(),
-  "minimum": zod.number(),
-  "maximum": zod.number()
+  "listingUrl": zod.string().url()
 }),
-  "level": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "minimum": zod.number(),
-  "maximum": zod.number()
-})
-}),
-  "localDemandNote": zod.string()
-}),
-  "mapping": zod.object({
-  "reviewedAt": zod.string(),
-  "method": zod.string()
-})
-}),
-  "occupations": zod.array(zod.object({
-  "id": zod.string(),
-  "mycol": zod.object({
-  "masco4": zod.string(),
-  "title": zod.string(),
-  "table7Number": zod.number().int(),
-  "masco6": zod.array(zod.string()),
-  "includedJobTitles": zod.array(zod.string()),
-  "profilePage": zod.number().int().describe('Printed report page of the occupation profile.'),
-  "edition": zod.string()
-}),
-  "onet": zod.object({
-  "code": zod.string(),
-  "title": zod.string(),
-  "description": zod.string(),
-  "url": zod.string(),
-  "skillRatingsAvailable": zod.boolean(),
-  "ratedSkillsCount": zod.number().int()
-}),
-  "mapping": zod.object({
-  "relation": zod.enum(['exact', 'approximate', 'broader', 'narrower']).describe('The O*NET occupation relative to the MyCOL scope.'),
-  "status": zod.enum(['verified', 'unverified']),
-  "rationale": zod.string(),
-  "limitations": zod.string()
-}),
-  "recommendationStatus": zod.enum(['eligible', 'excluded']),
-  "recommended": zod.boolean(),
-  "exclusionReason": zod.string().nullable(),
-  "documentedSkills": zod.array(zod.object({
-  "elementId": zod.string(),
-  "name": zod.string(),
-  "domain": zod.enum(['Essential', 'Transferable']),
-  "description": zod.string().nullable(),
-  "importance": zod.number().describe('O*NET Importance rating on its original 1-5 scale.'),
-  "level": zod.number().describe('O*NET Level rating on its original 0-7 scale. Not a 1-5 profile proficiency target.'),
-  "levelLowPrecision": zod.boolean().describe('O*NET\'s Recommend Suppress (low precision) flag for the Level rating.'),
-  "sampleSize": zod.number().int().nullable(),
-  "ratingDate": zod.string(),
-  "inProfile": zod.boolean()
-})),
-  "overlap": zod.union([zod.object({
-  "matchedSkills": zod.array(zod.string()),
-  "missingSkills": zod.array(zod.string()),
-  "skillsConsidered": zod.number().int(),
-  "score": zod.number().describe('Matched documented skills / documented skills x 100. Skill overlap only, not a hiring probability.')
-}),zod.null()]),
-  "explanation": zod.string()
-}))
+  "retrievedAt": zod.coerce.date(),
+  "isStale": zod.boolean(),
+  "warning": zod.string().nullable(),
+  "limitations": zod.array(zod.string())
 })
 
 
 /**
- * Official O*NET skill elements and dataset skills, with SkillShift browsing facets and SkillShift-reviewed aliases. Aliases and facets are not official classifications.
- * @summary List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
+ * @summary Re-request the Ministry of Digital listing
  */
-export const GetSkillCatalogueResponse = zod.object({
-  "facets": zod.array(zod.string()),
-  "entries": zod.array(zod.object({
-  "name": zod.string(),
-  "key": zod.string().describe('Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching.'),
-  "facet": zod.string(),
-  "sources": zod.array(zod.enum(['onet', 'dataset'])),
-  "onet": zod.union([zod.object({
-  "elementId": zod.string(),
-  "group": zod.string(),
-  "description": zod.string()
-}),zod.null()]),
-  "aliases": zod.array(zod.string())
+export const RefreshAiAnnouncementsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "title": zod.string(),
+  "publishedOn": zod.coerce.date(),
+  "category": zod.string().nullable(),
+  "url": zod.string().url(),
+  "source": zod.string()
 })),
-  "sources": zod.object({
-  "onet": zod.string(),
-  "dataset": zod.string(),
-  "aliases": zod.string(),
-  "facets": zod.string()
+  "source": zod.object({
+  "name": zod.string(),
+  "listingUrl": zod.string().url()
+}),
+  "retrievedAt": zod.coerce.date(),
+  "isStale": zod.boolean(),
+  "warning": zod.string().nullable(),
+  "limitations": zod.array(zod.string())
 })
+
+
+/**
+ * @summary Qarera global job-posting skill frequencies by role family
+ */
+export const getSkillFrequenciesResponseRolesItemRolePostingsMin = 0;
+
+export const getSkillFrequenciesResponseRolesItemSkillsItemPostingsWithSkillMin = 0;
+
+export const getSkillFrequenciesResponseRolesItemSkillsItemPercentOfRolePostingsMin = 0;
+export const getSkillFrequenciesResponseRolesItemSkillsItemPercentOfRolePostingsMax = 100;
+
+
+
+export const GetSkillFrequenciesResponse = zod.object({
+  "roles": zod.array(zod.object({
+  "roleFamily": zod.string(),
+  "rolePostings": zod.number().int().min(getSkillFrequenciesResponseRolesItemRolePostingsMin),
+  "skills": zod.array(zod.object({
+  "skill": zod.string(),
+  "postingsWithSkill": zod.number().int().min(getSkillFrequenciesResponseRolesItemSkillsItemPostingsWithSkillMin),
+  "percentOfRolePostings": zod.number().min(getSkillFrequenciesResponseRolesItemSkillsItemPercentOfRolePostingsMin).max(getSkillFrequenciesResponseRolesItemSkillsItemPercentOfRolePostingsMax)
+}))
+})),
+  "source": zod.object({
+  "datasetName": zod.string(),
+  "publisher": zod.string(),
+  "period": zod.string(),
+  "license": zod.string(),
+  "citation": zod.string(),
+  "urls": zod.array(zod.string()),
+  "geographyNote": zod.string(),
+  "measurementNote": zod.string()
+}),
+  "limitations": zod.array(zod.string())
 })
 
 

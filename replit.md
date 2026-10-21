@@ -8,7 +8,6 @@ A skills intelligence demo for exploring career matches, learning paths, workfor
 - Start the existing `artifacts/future-ready-workforce: web` workflow for the web preview at `/`. It runs `pnpm --filter @workspace/future-ready-workforce run dev` and supplies the required `PORT` and `BASE_PATH`; do not run this command without those workflow-provided variables.
 - `pnpm --filter @workspace/future-ready-workforce run typecheck` — check the web app.
 - Most profile data remains in browser-local storage. The Job Search page also requires the existing `artifacts/api-server: API Server` workflow and uses explicitly labeled sample listings; no database is required.
-- Both managed workflows are required for the full demo; the separate Canvas workflow is optional and can remain stopped. Check API availability at `/api/healthz`.
 - Run API tests with `pnpm --filter @workspace/api-server run test`.
 - Job-source integration points live in `artifacts/api-server/src/services/job_provider.ts`. The current source is demo data; no public job API has been selected or connected.
 - `pnpm run typecheck` — full typecheck across all packages
@@ -19,7 +18,7 @@ A skills intelligence demo for exploring career matches, learning paths, workfor
 
 ## Stack
 
-- pnpm workspaces, Node.js 20.20+, TypeScript 5.9
+- pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -32,15 +31,13 @@ A skills intelligence demo for exploring career matches, learning paths, workfor
 - `artifacts/future-ready-workforce/src/components/job-search-page.tsx` and `job-details-page.tsx` — job search and details UI.
 - `artifacts/api-server/src/services/job_provider.ts` — provider contract and current demo source.
 - `lib/api-spec/openapi.yaml` — API source of truth; regenerate clients with the codegen command above.
-- `artifacts/api-server/src/data/occupation-evidence/` — reviewed MyCOL 2024/2025 subset, MASCO-to-O*NET mapping and O*NET 31.0 skill ratings (regenerate with `pnpm --filter @workspace/api-server run import:onet`); see `docs/occupation-evidence-milestone-2.md`.
-- `artifacts/api-server/src/lib/skillCatalogue.ts` and `artifacts/future-ready-workforce/src/domain/skill-catalogue.ts` — profile skill catalogue (O*NET skills, dataset skills, reviewed aliases, sample-role skills); see `docs/skills-profile-catalogue.md`.
 - `artifacts/future-ready-workforce/src/index.css` and `src/components/job-search.css` — app theme and job-search styling.
 
 ## Architecture decisions
 
 - Job-source data access stays behind `JobProvider` in `services/job_provider.ts`; replace that adapter when a public job API is supplied, without adding provider-specific calls to routes or frontend code.
 - Current jobs are fictional preview records with `externalUrl: null`; do not present them as live vacancies or invent application destinations.
-- Job overlap uses skills saved in the current device profile. CV extraction runs locally in the API service; uploaded documents and extracted text remain transient, and profile suggestions require user review and confirmation.
+- Job overlap uses skills saved in the current device profile. The app does not extract skills from uploaded CV files; its existing CV picker is local-only.
 
 ## Product
 

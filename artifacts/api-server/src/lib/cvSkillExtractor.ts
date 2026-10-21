@@ -8,7 +8,12 @@ import Tesseract from "tesseract.js";
 import mammoth from "mammoth";
 import yauzl from "yauzl";
 import type { CvProfileSuggestions } from "@workspace/api-zod";
-import { careerDataset, normalizeSkill } from "./careerMatcher";
+import {
+  careerDataset,
+  detectRelatedSkillMappingsInText,
+  detectRelatedSkillsInText,
+  normalizeSkill,
+} from "./careerMatcher";
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
 const MAX_EXPANDED_BYTES = 20 * 1024 * 1024;
@@ -36,70 +41,36 @@ function skillPattern(skill: string): RegExp {
   return new RegExp(`(?<![\\p{L}\\p{N}_+#/-])(?<![\\p{L}\\p{N}_]\\.)${escaped}(?![\\p{L}\\p{N}_+#/-]|\\.[\\p{L}\\p{N}_])`, "giu");
 }
 
-const GENERIC_SKILLS = new Set(["data", "software"]);
-
-interface CompiledSkill {
-  skill: string;
-  pattern: RegExp;
-  /** ASCII alphanumeric runs that must all be whole tokens of the text; null when no safe pre-check exists. */
-  tokens: string[] | null;
-}
-
-// Patterns are compiled once per catalogue instead of on every upload.
-const compiledCatalogues = new WeakMap<readonly string[], CompiledSkill[]>();
-
-function compileCatalogue(catalogue: readonly string[]): CompiledSkill[] {
-  let compiled = compiledCatalogues.get(catalogue);
-  if (!compiled) {
-    compiled = catalogue.map((name) => {
-      const skill = normalizeSkill(name);
-      // A match of an ASCII-only skill is bounded by non-alphanumerics, so each
-      // of its alphanumeric runs is a whole token of the lower-cased NFKC text.
-      // Checking a token set skips the regex scan for skills absent from a CV.
-      return { skill, pattern: skillPattern(skill), tokens: /^[\x00-\x7f]*$/.test(skill) ? asciiTokens(skill) : null };
-    });
-    compiledCatalogues.set(catalogue, compiled);
-  }
-  return compiled;
-}
-
-function asciiTokens(text: string): string[] {
-  return text.split(/[^a-z0-9]+/).filter(Boolean);
-}
-
-export function detectSkills(text: string, catalogue: readonly string[] = careerDataset.allSkills): string[] {
+function detectExactSkills(text: string, catalogue = careerDataset.allSkills): string[] {
   const normalized = text.normalize("NFKC");
-  const textTokens = new Set(asciiTokens(normalized.toLowerCase()));
-  let explicitSkillLines: string | undefined;
+  const explicitSkillLines = normalized.split(/\r?\n/).flatMap((line) => {
+    const match = line.match(/^\s*(?:technical\s+)?(?:skills?|competencies)\s*[:–-]\s*(.*)$/i);
+    return match ? [match[1]] : [];
+  }).join("\n");
   const candidates: { skill: string; start: number; end: number }[] = [];
-  for (const { skill, pattern, tokens } of compileCatalogue(catalogue)) {
-    if (tokens && !tokens.every((token) => textTokens.has(token))) continue;
+  for (const name of catalogue) {
+    const skill = normalizeSkill(name);
     // Generic terms are evidence only when explicitly listed as skills.
-    if (GENERIC_SKILLS.has(skill)) {
-      explicitSkillLines ??= normalized.split(/\r?\n/).flatMap((line) => {
-        const match = line.match(/^\s*(?:technical\s+)?(?:skills?|competencies)\s*[:–-]\s*(.*)$/i);
-        return match ? [match[1]] : [];
-      }).join("\n");
-      pattern.lastIndex = 0;
-      if (!pattern.test(explicitSkillLines)) continue;
-    }
-    pattern.lastIndex = 0;
-    for (const match of normalized.matchAll(pattern)) {
+    if (["data", "software"].includes(skill) && !skillPattern(skill).test(explicitSkillLines)) continue;
+    for (const match of normalized.matchAll(skillPattern(skill))) {
       candidates.push({ skill, start: match.index!, end: match.index! + match[0].length });
     }
   }
   candidates.sort((a, b) => a.start - b.start || b.end - a.end || a.skill.localeCompare(b.skill));
-  // Candidates are ordered by start, so a candidate overlaps an earlier
-  // selection exactly when it starts before the furthest selected end.
   const selected: typeof candidates = [];
-  let selectedEnd = -1;
   for (const candidate of candidates) {
-    if (candidate.start >= selectedEnd) {
+    if (!selected.some((item) => candidate.start < item.end && candidate.end > item.start)) {
       selected.push(candidate);
-      selectedEnd = candidate.end;
     }
   }
   return [...new Set(selected.map((item) => item.skill))];
+}
+
+export function detectSkills(text: string, catalogue = careerDataset.allSkills): string[] {
+  return [...new Set([
+    ...detectExactSkills(text, catalogue),
+    ...detectRelatedSkillsInText(text, catalogue),
+  ])];
 }
 
 const PROFILE_LABELS: Record<string, keyof CvProfileSuggestions> = {
@@ -489,13 +460,22 @@ export async function extractCvSkills(
     throw new CvError(422, "No readable text could be recognized in this file. Try a clearer image or PDF, enter skills manually, or choose another file.");
   }
   if (text.length > MAX_TEXT_LENGTH) throw new CvError(422, "This document contains too much text. Upload a shorter CV.");
-  const skills = detectSkills(text);
+  const exactSkills = detectExactSkills(text);
+  const relatedMappings = detectRelatedSkillMappingsInText(text)
+    .filter((mapping) => !exactSkills.includes(mapping.datasetSkill));
+  const skills = [...new Set([
+    ...exactSkills,
+    ...relatedMappings.map((mapping) => mapping.datasetSkill),
+  ])];
   const profileSuggestions = detectProfileSuggestions(text);
   return {
     skills,
     profileSuggestions,
     warnings: [
-      "Only exact skill names in the career dataset are detected. Review and correct the list before matching.",
+      "The engine checks exact skill names and a small reviewed set of related phrases. Review the suggestions before saving them.",
+      ...(relatedMappings.length
+        ? [`Related CV wording suggested these dataset skills: ${relatedMappings.map((mapping) => mapping.datasetSkill).join(", ")}. They are related-phrase matches, not exact wording; review each before adding it to your profile.`]
+        : []),
       ...warnings,
       ...(skills.length ? [] : ["No recognised dataset skills were found. You can add skills manually or upload another file."]),
     ],

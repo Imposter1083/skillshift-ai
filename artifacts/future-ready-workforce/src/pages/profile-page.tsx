@@ -2,13 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, RotateCcw, Save, ShieldAlert, Trash2 } from 'lucide-react';
-import { getGetSkillCatalogueQueryKey, useGetSkillCatalogue, type CvProfileSuggestions } from '@workspace/api-client-react';
+import { Check, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
+import type { CvProfileSuggestions } from '@workspace/api-client-react';
 import { ProfileCvImport } from '@/components/profile-cv-import';
 import { ChiliLevelSlider } from '@/components/chili-level-slider';
-import { SkillSearch, SourceBadges, type NewSkill } from '@/components/skill-search';
-import { buildCatalogue, catalogueIndex, skillUsage } from '@/domain/skill-catalogue';
-import { normalizeSkill } from '@/domain/services';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -28,6 +25,7 @@ const formSchema = profileSchema.extend({ interestsText: z.string().max(1200) })
 type FormValues = z.infer<typeof formSchema>;
 const toForm = (p: DemoProfile): FormValues => ({ ...p, interestsText: p.interests.join(', ') });
 const numberChange = (fn: (v: number | null) => void) => (e: React.ChangeEvent<HTMLInputElement>) => fn(e.target.value === '' ? null : Number(e.target.value));
+const normaliseSkillName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
 function suggestedSkillsForOccupation(occupation: string, existingSkills: ReadonlyArray<{ name: string }>) {
   const tokens = occupation.toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter(token => token.length > 1);
@@ -40,12 +38,12 @@ function suggestedSkillsForOccupation(occupation: string, existingSkills: Readon
   const roleSkills = rankedRoles[0]?.score
     ? rankedRoles[0].role.requiredSkills.map(skill => skill.name)
     : [];
-  const existing = new Set(existingSkills.map(skill => normalizeSkill(skill.name)));
+  const existing = new Set(existingSkills.map(skill => normaliseSkillName(skill.name)));
   const seen = new Set<string>();
   const suggestions: string[] = [];
 
   for (const name of [...roleSkills, ...skillCatalogue]) {
-    const key = normalizeSkill(name);
+    const key = normaliseSkillName(name);
     if (!key || seen.has(key) || existing.has(key)) continue;
     seen.add(key);
     suggestions.push(name);
@@ -53,22 +51,6 @@ function suggestedSkillsForOccupation(occupation: string, existingSkills: Readon
   }
 
   return suggestions;
-}
-
-function SkillUsageLine({ name, index, testId }: { name: string; index: ReturnType<typeof catalogueIndex>; testId: string }) {
-  if (!name.trim()) return null;
-  const usage = skillUsage(index, name);
-  const used = [
-    usage.sampleRoles && 'Career explorer sample roles, Digital twin and Roadmap',
-    usage.occupationEvidence && 'Official occupation evidence (O*NET)',
-    usage.datasetMatching && 'Dataset matching',
-  ].filter(Boolean);
-  return <p className="skill-usage" data-testid={testId}>
-    <SourceBadges skill={index.byKey.get(normalizeSkill(name)) ?? null} />{' '}
-    {usage.custom
-      ? 'Kept in your profile. Not recognised by the built-in datasets, so no matching calculation uses it.'
-      : <>Used by: {used.join(' · ')}. Not used by other calculations.</>}
-  </p>;
 }
 
 export default function ProfilePage() {
@@ -83,15 +65,9 @@ export default function ProfilePage() {
     [occupation, profileSkills],
   );
   const [saved, setSaved] = useState('');
+  const [newSkill, setNewSkill] = useState('');
+  const [newCategory, setNewCategory] = useState('Custom');
   const [skillError, setSkillError] = useState('');
-  const catalogueQuery = useGetSkillCatalogue({ query: { queryKey: getGetSkillCatalogueQueryKey(), staleTime: Infinity, retry: 1 }, request: { responseType: 'json' } });
-  const catalogue = useMemo(() => buildCatalogue(catalogueQuery.data?.entries), [catalogueQuery.data]);
-  const index = useMemo(() => catalogueIndex(catalogue), [catalogue]);
-  const catalogueNote = catalogueQuery.data
-    ? `${catalogue.length} catalogue skills: ${catalogueQuery.data.sources.onet} ${catalogueQuery.data.sources.dataset} ${catalogueQuery.data.sources.aliases}`
-    : catalogueQuery.isError
-      ? 'The official skill catalogue could not be loaded, so only sample-role skills are suggested. You can still add any skill as a custom skill.'
-      : 'Loading the skill catalogue…';
   const [variant, setVariant] = useState<'default' | 'data'>('default');
   const graduate = state.audience === 'graduate' || state.audience === 'education';
   const completionItems = [
@@ -115,7 +91,7 @@ export default function ProfilePage() {
   const onSubmit = (v: FormValues) => {
     const { interestsText, ...rest } = v;
     saveProfile({ ...rest, interests: interestsText.split(',').map(s => s.trim()).filter(Boolean) } as DemoProfile);
-    setSaved('Profile saved in this browser. Use fictional details only; storage warnings, if any, are shown above.');
+    setSaved('Profile updated for this session. Browser storage warnings, if any, are shown above.');
   };
   const applyCvImport = (imported: ProfileSkill[], details: CvProfileSuggestions) => {
     if (imported.length) skills.append(imported);
@@ -137,9 +113,15 @@ export default function ProfilePage() {
     if (imported.length) updates.push(`${imported.length} confirmed skill${imported.length === 1 ? '' : 's'} added`);
     setSaved(`${updates.join(' and ')} in the profile draft. Review the fields and save your profile to keep them.`);
   };
-  const addSkill = ({ name, category, level }: NewSkill) => {
-    skills.append({ name, level, category: category.slice(0, 120) });
-    setSkillError(''); setSaved('');
+  const addSkill = () => {
+    const name = newSkill.trim().replace(/\s+/g, ' ');
+    const current = form.getValues('skills');
+    if (!name) return setSkillError('Enter a skill name.');
+    if (name.length > 60) return setSkillError('Skill names must be 60 characters or fewer.');
+    if (current.length >= 50) return setSkillError('A profile can hold up to 50 skills.');
+    if (current.some(s => normaliseSkillName(s.name) === normaliseSkillName(name))) return setSkillError(`"${name}" is already in your profile.`);
+    skills.append({ name, level: 2, category: newCategory.trim().slice(0, 120) || 'Custom' });
+    setNewSkill(''); setSkillError(''); setSaved('');
   };
   const addSuggestedSkill = (name: string) => {
     const current = form.getValues('skills');
@@ -147,7 +129,7 @@ export default function ProfilePage() {
       setSkillError('A profile can hold up to 50 skills.');
       return;
     }
-    if (current.some(skill => normalizeSkill(skill.name) === normalizeSkill(name))) return;
+    if (current.some(skill => normaliseSkillName(skill.name) === normaliseSkillName(name))) return;
     skills.append({ name, level: 1, category: 'Suggested' });
     setSkillError('');
     setSaved('');
@@ -174,7 +156,7 @@ export default function ProfilePage() {
       >
         <span style={{ width: `${completeness}%` }} />
     </div>
-      <p className="profile-refresh-note" data-testid="text-fictional-data-notice"><ShieldAlert size={11} /> Use fictional demo details only. Do not enter real personal data or upload a real CV. Saved profiles stay in this browser’s local storage and persist after refresh.</p>
+      <p className="profile-refresh-note">About You resets on refresh; skills and roadmap progress stay saved.</p>
     </section>
     <ProfileCvImport existingSkills={profileSkills} onApply={applyCvImport} />
     <div className="grid-2">
@@ -207,7 +189,7 @@ export default function ProfilePage() {
           <SectionTitle
             title="About you"
             note="BACKGROUND AND CONSTRAINTS"
-            info="Use fictional demo details only. These fields add planning context and do not change your readiness score. Leave an unmatched field blank. Saved details stay in this browser after refresh."
+            info="Only enter details that apply to you. These fields add planning context and do not change your readiness score. Leave an unmatched field blank; About You details clear when the website refreshes, while skills and roadmap progress stay saved."
           />
           <div className="form-grid">
             <FormField control={form.control} name="occupation" render={({ field }) => <FormItem className="field"><FormLabel>{graduate ? 'Study programme or occupation' : 'Occupation'}</FormLabel><FormControl><input className="fr-input" placeholder="e.g., Operations coordinator" {...field} data-testid="input-occupation" /></FormControl><FormMessage /></FormItem>} />
@@ -254,7 +236,7 @@ export default function ProfilePage() {
             info="Set each level yourself: 1 is new to it and 5 means you can teach it. CV verification only confirms a skill name; it never sets proficiency."
           />
           {skills.fields.length === 0 && <p className="muted">No skills yet. Add one below.</p>}
-          {skills.fields.map((f, i) => <div key={f.id}><div className="skill-edit" data-testid={`row-skill-${i}`}>
+          {skills.fields.map((f, i) => <div className="skill-edit" key={f.id} data-testid={`row-skill-${i}`}>
             <FormField control={form.control} name={`skills.${i}.name`} render={({ field }) => <FormItem className="field"><FormControl><div className="skill-name-control">
               <input className="fr-input" aria-label={`Skill ${i + 1} name`} maxLength={60} {...field} data-testid={`input-skill-name-${i}`} />
               {(profileSkills[i]?.cvDetected || profileSkills[i]?.category === 'CV detected') && <span className="cv-skill-check" title="Found in CV" role="img" aria-label="Found in CV"><Check size={12} /></span>}
@@ -267,19 +249,17 @@ export default function ProfilePage() {
               testId={`select-skill-level-${i}`}
             /></FormControl></FormItem>} />
             <button type="button" className="icon-button" onClick={() => skills.remove(i)} aria-label={`Remove skill ${f.name}`} data-testid={`button-remove-skill-${i}`}><Trash2 size={14} /></button>
-          </div><SkillUsageLine name={profileSkills[i]?.name ?? ''} index={index} testId={`text-skill-usage-${i}`} /></div>)}
+          </div>)}
           {form.formState.errors.skills?.root?.message && <p className="field-error" role="alert">{form.formState.errors.skills.root.message}</p>}
           {form.formState.errors.skills?.message && <p className="field-error" role="alert">{form.formState.errors.skills.message}</p>}
-          <SkillSearch
-            catalogue={catalogue}
-            facets={catalogueQuery.data?.facets ?? []}
-            catalogueNote={catalogueNote}
-            existingNames={profileSkills.map(skill => skill.name)}
-            onAdd={addSkill}
-            disabled={skills.fields.length >= 50}
-          />
-          {skills.fields.length >= 50 && <p className="muted small">Your profile has reached the 50-skill limit.</p>}
-          {skillError && <p className="field-error" role="alert" data-testid="error-suggested-skill">{skillError}</p>}
+          <div className="row" style={{ marginTop: 14 }}>
+            <input className="fr-input" style={{ maxWidth: 260 }} list="skill-catalogue" maxLength={80} value={newSkill} onChange={e => { setNewSkill(e.target.value); setSkillError(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }} placeholder="Add a skill" aria-label="New skill name" data-testid="input-new-skill" />
+            <datalist id="skill-catalogue">{skillCatalogue.map(s => <option key={s} value={s} />)}</datalist>
+            <input className="fr-input" style={{ maxWidth: 160 }} value={newCategory} onChange={e => setNewCategory(e.target.value)} aria-label="New skill category" data-testid="input-new-skill-category" />
+            <button type="button" className="btn btn-secondary btn-small" onClick={addSkill} data-testid="button-add-skill"><Plus size={12} /> Add skill</button>
+          </div>
+          {skillError && <p className="field-error" role="alert" data-testid="error-add-skill">{skillError}</p>}
+          <div className="row" style={{ marginTop: 10 }}>{skillCatalogue.filter(s => !skills.fields.some(f => f.name.toLowerCase() === s.toLowerCase())).slice(0, 8).map(s => <button type="button" key={s} className="chip" style={{ border: 0 }} onClick={() => setNewSkill(s)} data-testid={`button-suggest-${slug(s)}`}>{s}</button>)}</div>
         </div>
 
         <div className="profile-save-bar" role="region" aria-label="Profile save controls">

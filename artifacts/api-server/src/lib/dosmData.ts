@@ -5,7 +5,6 @@ const OPEN_DOSM_CATALOGUE_URL = "https://open.dosm.gov.my/data-catalogue/lfs_mon
 const LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
-const FAILURE_RETRY_MS = 60_000;
 const STALE_AFTER_DAYS = 120;
 
 const rawLfsRecordSchema = z.object({
@@ -42,7 +41,6 @@ type ServiceOptions = {
   now?: () => Date;
   cacheTtlMs?: number;
   requestTimeoutMs?: number;
-  failureRetryMs?: number;
   apiUrl?: string;
 };
 
@@ -144,13 +142,7 @@ export function createDosmLabourForceService(options: ServiceOptions = {}) {
   const cacheTtlMs = options.cacheTtlMs ?? CACHE_TTL_MS;
   const requestTimeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   const apiUrl = options.apiUrl ?? OPEN_DOSM_API_URL;
-  const failureRetryMs = options.failureRetryMs ?? FAILURE_RETRY_MS;
   let cache: CacheEntry | null = null;
-  // Concurrent readers share one upstream request, and after a failure the
-  // source is not retried until the back-off ends, so page loads are never
-  // held up by repeated timeouts against an unavailable source.
-  let inFlight: Promise<CacheEntry> | null = null;
-  let lastFailure: { error: unknown; retryAt: number } | null = null;
 
   async function download(): Promise<CacheEntry> {
     const url = new URL(apiUrl);
@@ -181,20 +173,6 @@ export function createDosmLabourForceService(options: ServiceOptions = {}) {
     }
   }
 
-  function load(): Promise<CacheEntry> {
-    inFlight ??= download()
-      .then(downloaded => {
-        cache = downloaded;
-        lastFailure = null;
-        return downloaded;
-      }, error => {
-        lastFailure = { error, retryAt: now().getTime() + failureRetryMs };
-        throw error;
-      })
-      .finally(() => { inFlight = null; });
-    return inFlight;
-  }
-
   async function get(
     filters: { fromMonth?: string; toMonth?: string } = {},
   ) {
@@ -212,14 +190,10 @@ export function createDosmLabourForceService(options: ServiceOptions = {}) {
     if (cache && currentTime.getTime() < cache.expiresAt) {
       return toLabourForceResponse(cache, { ...filters, now: currentTime });
     }
-    if (lastFailure && currentTime.getTime() < lastFailure.retryAt) {
-      if (!cache) throw lastFailure.error;
-      return toLabourForceResponse(cache, { ...filters, fallbackUsed: true, now: currentTime });
-    }
 
     try {
-      const loaded = await load();
-      return toLabourForceResponse(loaded, { ...filters, now: now() });
+      cache = await download();
+      return toLabourForceResponse(cache, { ...filters, now: now() });
     } catch (error) {
       if (!cache) throw error;
       return toLabourForceResponse(cache, {
@@ -231,10 +205,8 @@ export function createDosmLabourForceService(options: ServiceOptions = {}) {
   }
 
   async function refresh() {
-    // Repeated refresh clicks during the back-off report the last failure
-    // instead of sending more requests to an unavailable source.
-    if (!inFlight && lastFailure && now().getTime() < lastFailure.retryAt) throw lastFailure.error;
-    const downloaded = await load();
+    const downloaded = await download();
+    cache = downloaded;
     return {
       status: "refreshed" as const,
       retrievedAt: downloaded.retrievedAt,

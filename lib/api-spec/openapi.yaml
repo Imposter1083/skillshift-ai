@@ -14,10 +14,6 @@ tags:
     description: Dataset-based career skill matching
   - name: dosm
     description: Official DOSM labour-force and Job Market Insights data
-  - name: skills
-    description: Searchable skill catalogue for the profile builder
-  - name: occupations
-    description: TalentCorp MyCOL critical occupations mapped to O*NET occupational skill information
 paths:
   /healthz:
     get:
@@ -50,7 +46,7 @@ paths:
       operationId: extractCvSkills
       tags: [career]
       summary: Extract dataset skills and labelled profile details from an in-memory CV
-      description: PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
+      description: PDF, DOCX, UTF-8 TXT, JPG, JPEG or PNG, at most 5 MB. Scanned PDFs and image uploads use local offline OCR. Exact skill names and reviewed related phrases are suggested for review; profile details are returned only when explicitly labelled in the CV. No file or raw text is retained or sent to external services.
       requestBody:
         required: true
         content:
@@ -94,8 +90,10 @@ paths:
       tags: [career]
       summary: Rank role families by dataset skill overlap
       description: >
-        Compares the supplied skills (normalized, exact-name matching) with each
-        role family's 30 listed skills. Score = matched skills / 30 x 100.
+        Compares the supplied profile skills with each role family's 30 listed
+        skills using exact names and a small reviewed set of related phrase
+        aliases. The response identifies exact versus related mappings.
+        Score = matched dataset skills / 30 x 100.
         This is dataset skill overlap, not a probability of employment.
       requestBody:
         required: true
@@ -112,6 +110,126 @@ paths:
                 $ref: "#/components/schemas/CareerMatchResult"
         "400":
           description: Invalid skills input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /analyze-resume:
+    post:
+      operationId: analyzeResume
+      tags: [career]
+      summary: Analyze resume text using local deterministic skill detection
+      description: >
+        Uses exact skill names and a small reviewed set of related phrase mappings
+        with the bundled role-skill dataset. Resume text is processed in memory and
+        is not retained or sent to external services. This endpoint does not run an
+        ML model or generate a validated readiness score.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResumeTextInput"
+      responses:
+        "200":
+          description: Detected skills and available profile suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeAnalysisReport"
+        "400":
+          description: Invalid resume text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /skill-gap-analysis:
+    post:
+      operationId: analyzeSkillGap
+      tags: [career]
+      summary: Compare resume skills with one bundled role family
+      description: >
+        Returns exact and reviewed related-skill overlap and missing role skills,
+        with resources from a small reviewed catalog of official provider courses.
+        Skills with no verified resource are explicitly identified by the empty
+        catalog status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillGapAnalysisInput"
+      responses:
+        "200":
+          description: Dataset-based role skill gap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillGapAnalysisReport"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Target role is not present in the bundled dataset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /career-path:
+    post:
+      operationId: analyzeCareerPath
+      tags: [career]
+      summary: Rank role families and list illustrative next skills
+      description: >
+        Uses deterministic skill matching with exact names and reviewed related
+        phrase mappings. The score is not a confidence score, suitability
+        prediction, or employment probability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResumeTextInput"
+      responses:
+        "200":
+          description: Ranked dataset role families
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareerPathAnalysisReport"
+        "400":
+          description: Invalid resume text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile-similarity:
+    post:
+      operationId: analyzeProfileSimilarity
+      tags: [career]
+      summary: Return available profile-similarity information
+      description: >
+        The bundled dataset contains role skill lists but no candidate profiles.
+        The endpoint therefore returns no similar profiles and explains the
+        limitation rather than fabricating peer records.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResumeTextInput"
+      responses:
+        "200":
+          description: Similarity result with data-availability limitations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileSimilarityReport"
+        "400":
+          description: Invalid resume text
           content:
             application/json:
               schema:
@@ -325,52 +443,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /occupations/match:
-    post:
-      operationId: matchOccupationEvidence
-      tags: [occupations]
-      summary: Compare profile skills with O*NET skills for mapped MyCOL critical occupations
-      description: >
-        Returns the reviewed MyCOL 2024/2025 occupations, their MASCO-to-O*NET mappings and the
-        O*NET 31.0 skills documented for each mapped occupation, with exact normalized overlap against
-        the supplied skills. MyCOL status is a TalentCorp classification and O*NET is United States
-        reference data; neither is a hiring probability or a measure of Malaysian demand.
-        Unverified mappings and occupations without O*NET skill ratings are returned but excluded
-        from recommendations.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OccupationSkillsInput"
+  /signals/ai-announcements:
+    get:
+      operationId: getAiAnnouncements
+      tags: [signals]
+      summary: AI-related Ministry of Digital press releases
+      description: Qualitative, dated announcements read from the public listing page. Not skill-demand data.
       responses:
         "200":
-          description: Occupation evidence with source metadata
+          description: Announcements with source, retrieval time and staleness
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OccupationEvidenceResult"
-        "400":
-          description: Invalid skills input
+                $ref: "#/components/schemas/AiAnnouncementsResponse"
+        "502":
+          description: Source unavailable and no earlier copy exists
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /skills/catalogue:
-    get:
-      operationId: getSkillCatalogue
-      tags: [skills]
-      summary: List catalogue skills from O*NET 31.0 and the Dataset Matching dataset
-      description: >
-        Official O*NET skill elements and dataset skills, with SkillShift browsing facets and
-        SkillShift-reviewed aliases. Aliases and facets are not official classifications.
+  /signals/ai-announcements/refresh:
+    post:
+      operationId: refreshAiAnnouncements
+      tags: [signals]
+      summary: Re-request the Ministry of Digital listing
       responses:
         "200":
-          description: Skill catalogue
+          description: Announcements were retrieved and parsed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SkillCatalogue"
+                $ref: "#/components/schemas/AiAnnouncementsResponse"
+        "502":
+          description: Refresh failed; any earlier copy is retained
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /signals/skill-frequencies:
+    get:
+      operationId: getSkillFrequencies
+      tags: [signals]
+      summary: Qarera global job-posting skill frequencies by role family
+      responses:
+        "200":
+          description: Top skills per role family with source and limitations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillFrequenciesResponse"
 components:
   parameters:
     JobPage:
@@ -455,334 +576,77 @@ components:
         enum: [relevance, recent]
         default: recent
   schemas:
-    SkillCatalogueEntry:
+    AiAnnouncement:
       type: object
       properties:
-        name:
-          type: string
-        key:
-          type: string
-          description: Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching.
-        facet:
-          type: string
-        sources:
-          type: array
-          items:
-            type: string
-            enum: [onet, dataset]
-        onet:
-          oneOf:
-            - type: object
-              properties:
-                elementId:
-                  type: string
-                group:
-                  type: string
-                description:
-                  type: string
-              required: [elementId, group, description]
-            - type: "null"
-        aliases:
-          type: array
-          items:
-            type: string
-      required: [name, key, facet, sources, onet, aliases]
-    SkillCatalogue:
+        title: { type: string }
+        publishedOn: { type: string, format: date }
+        category: { type: [string, "null"] }
+        url: { type: string, format: uri }
+        source: { type: string }
+      required: [title, publishedOn, category, url, source]
+    AiAnnouncementsResponse:
       type: object
       properties:
-        facets:
+        items:
           type: array
           items:
-            type: string
-        entries:
-          type: array
-          items:
-            $ref: "#/components/schemas/SkillCatalogueEntry"
-        sources:
+            $ref: "#/components/schemas/AiAnnouncement"
+        source:
           type: object
           properties:
-            onet:
-              type: string
-            dataset:
-              type: string
-            aliases:
-              type: string
-            facets:
-              type: string
-          required: [onet, dataset, aliases, facets]
-      required: [facets, entries, sources]
-    OccupationSkillsInput:
+            name: { type: string }
+            listingUrl: { type: string, format: uri }
+          required: [name, listingUrl]
+        retrievedAt: { type: string, format: date-time }
+        isStale: { type: boolean }
+        warning: { type: [string, "null"] }
+        limitations:
+          type: array
+          items: { type: string }
+      required: [items, source, retrievedAt, isStale, warning, limitations]
+    SkillFrequency:
       type: object
       properties:
+        skill: { type: string }
+        postingsWithSkill: { type: integer, minimum: 0 }
+        percentOfRolePostings: { type: number, minimum: 0, maximum: 100 }
+      required: [skill, postingsWithSkill, percentOfRolePostings]
+    SkillFrequencyRole:
+      type: object
+      properties:
+        roleFamily: { type: string }
+        rolePostings: { type: integer, minimum: 0 }
         skills:
           type: array
-          minItems: 0
-          maxItems: 50
           items:
-            type: string
-            minLength: 1
-            maxLength: 60
-      required:
-        - skills
-    OccupationScale:
+            $ref: "#/components/schemas/SkillFrequency"
+      required: [roleFamily, rolePostings, skills]
+    SkillFrequenciesResponse:
       type: object
       properties:
-        id:
-          type: string
-        name:
-          type: string
-        minimum:
-          type: number
-        maximum:
-          type: number
-      required: [id, name, minimum, maximum]
-    OccupationSourceFile:
-      type: object
-      properties:
-        name:
-          type: string
-        url:
-          type: string
-        sha256:
-          type: string
-      required: [name, url, sha256]
-    MycolSource:
-      type: object
-      properties:
-        edition:
-          type: string
-        title:
-          type: string
-        publisher:
-          type: string
-        landingUrl:
-          type: string
-        reportUrl:
-          type: string
-        reportSha256:
-          type: string
-        referencePeriod:
-          type: string
-        publicationDate:
-          type: ["string", "null"]
-          description: Not stated in the report; null is intentional.
-        classification:
-          type: string
-        listReference:
-          type: string
-        totalOccupationsListed:
-          type: integer
-        reviewedAt:
-          type: string
-        scopeNote:
-          type: string
-        masco6Note:
-          type: string
-      required: [edition, title, publisher, landingUrl, reportUrl, reportSha256, referencePeriod, publicationDate, classification, listReference, totalOccupationsListed, reviewedAt, scopeNote, masco6Note]
-    OnetSource:
-      type: object
-      properties:
-        name:
-          type: string
-        release:
-          type: string
-        releaseDate:
-          type: string
-        taxonomy:
-          type: string
-        databaseUrl:
-          type: string
-        releasesUrl:
-          type: string
-        license:
-          type: string
-        licenseUrl:
-          type: string
-        licensePageUrl:
-          type: string
-        attribution:
-          type: string
-        modifications:
-          type: string
-        files:
+        roles:
           type: array
           items:
-            $ref: "#/components/schemas/OccupationSourceFile"
-        scales:
+            $ref: "#/components/schemas/SkillFrequencyRole"
+        source:
           type: object
           properties:
-            importance:
-              $ref: "#/components/schemas/OccupationScale"
-            level:
-              $ref: "#/components/schemas/OccupationScale"
-          required: [importance, level]
-        localDemandNote:
-          type: string
-      required: [name, release, releaseDate, taxonomy, databaseUrl, releasesUrl, license, licenseUrl, licensePageUrl, attribution, modifications, files, scales, localDemandNote]
-    OccupationMappingReview:
-      type: object
-      properties:
-        reviewedAt:
-          type: string
-        method:
-          type: string
-      required: [reviewedAt, method]
-    OccupationEvidenceSources:
-      type: object
-      properties:
-        mycol:
-          $ref: "#/components/schemas/MycolSource"
-        onet:
-          $ref: "#/components/schemas/OnetSource"
-        mapping:
-          $ref: "#/components/schemas/OccupationMappingReview"
-      required: [mycol, onet, mapping]
-    MycolOccupation:
-      type: object
-      properties:
-        masco4:
-          type: string
-        title:
-          type: string
-        table7Number:
-          type: integer
-        masco6:
-          type: array
-          items:
-            type: string
-        includedJobTitles:
-          type: array
-          items:
-            type: string
-        profilePage:
-          type: integer
-          description: Printed report page of the occupation profile.
-        edition:
-          type: string
-      required: [masco4, title, table7Number, masco6, includedJobTitles, profilePage, edition]
-    OnetOccupation:
-      type: object
-      properties:
-        code:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        url:
-          type: string
-        skillRatingsAvailable:
-          type: boolean
-        ratedSkillsCount:
-          type: integer
-      required: [code, title, description, url, skillRatingsAvailable, ratedSkillsCount]
-    OccupationMapping:
-      type: object
-      properties:
-        relation:
-          type: string
-          enum: [exact, approximate, broader, narrower]
-          description: The O*NET occupation relative to the MyCOL scope.
-        status:
-          type: string
-          enum: [verified, unverified]
-        rationale:
-          type: string
+            datasetName: { type: string }
+            publisher: { type: string }
+            period: { type: string }
+            license: { type: string }
+            citation: { type: string }
+            urls:
+              type: array
+              items: { type: string }
+            geographyNote: { type: string }
+            measurementNote: { type: string }
+          required: [datasetName, publisher, period, license, citation, urls, geographyNote, measurementNote]
         limitations:
-          type: string
-      required: [relation, status, rationale, limitations]
-    DocumentedSkill:
-      type: object
-      properties:
-        elementId:
-          type: string
-        name:
-          type: string
-        domain:
-          type: string
-          enum: [Essential, Transferable]
-        description:
-          type: ["string", "null"]
-        importance:
-          type: number
-          description: O*NET Importance rating on its original 1-5 scale.
-        level:
-          type: number
-          description: O*NET Level rating on its original 0-7 scale. Not a 1-5 profile proficiency target.
-        levelLowPrecision:
-          type: boolean
-          description: O*NET's Recommend Suppress (low precision) flag for the Level rating.
-        sampleSize:
-          type: ["integer", "null"]
-        ratingDate:
-          type: string
-        inProfile:
-          type: boolean
-      required: [elementId, name, domain, description, importance, level, levelLowPrecision, sampleSize, ratingDate, inProfile]
-    OccupationOverlap:
-      type: object
-      properties:
-        matchedSkills:
           type: array
-          items:
-            type: string
-        missingSkills:
-          type: array
-          items:
-            type: string
-        skillsConsidered:
-          type: integer
-        score:
-          type: number
-          description: Matched documented skills / documented skills x 100. Skill overlap only, not a hiring probability.
-      required: [matchedSkills, missingSkills, skillsConsidered, score]
-    OccupationEvidence:
-      type: object
-      properties:
-        id:
-          type: string
-        mycol:
-          $ref: "#/components/schemas/MycolOccupation"
-        onet:
-          $ref: "#/components/schemas/OnetOccupation"
-        mapping:
-          $ref: "#/components/schemas/OccupationMapping"
-        recommendationStatus:
-          type: string
-          enum: [eligible, excluded]
-        recommended:
-          type: boolean
-        exclusionReason:
-          type: ["string", "null"]
-        documentedSkills:
-          type: array
-          items:
-            $ref: "#/components/schemas/DocumentedSkill"
-        overlap:
-          oneOf:
-            - $ref: "#/components/schemas/OccupationOverlap"
-            - type: "null"
-        explanation:
-          type: string
-      required: [id, mycol, onet, mapping, recommendationStatus, recommended, exclusionReason, documentedSkills, overlap, explanation]
-    OccupationEvidenceResult:
-      type: object
-      properties:
-        normalizedSkills:
-          type: array
-          items:
-            type: string
-        selectionRule:
-          type: string
-        scoring:
-          type: string
-        sources:
-          $ref: "#/components/schemas/OccupationEvidenceSources"
-        occupations:
-          type: array
-          items:
-            $ref: "#/components/schemas/OccupationEvidence"
-      required: [normalizedSkills, selectionRule, scoring, sources, occupations]
+          items: { type: string }
+      required: [roles, source, limitations]
     ErrorResponse:
       type: object
       properties:
@@ -849,6 +713,26 @@ components:
             maxLength: 60
       required:
         - skills
+    ResumeTextInput:
+      type: object
+      properties:
+        resume_text:
+          type: string
+          minLength: 1
+          maxLength: 200000
+      required: [resume_text]
+    SkillGapAnalysisInput:
+      type: object
+      properties:
+        resume_text:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        target_role:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required: [resume_text, target_role]
     CareerMatch:
       type: object
       properties:
@@ -873,6 +757,17 @@ components:
         - skillsConsidered
         - matchedSkills
         - missingSkills
+    CareerSkillMapping:
+      type: object
+      properties:
+        profileSkill:
+          type: string
+        datasetSkill:
+          type: string
+        matchType:
+          type: string
+          enum: [exact, related]
+      required: [profileSkill, datasetSkill, matchType]
     CareerScoring:
       type: object
       properties:
@@ -934,6 +829,10 @@ components:
           type: array
           items:
             type: string
+        skillMappings:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareerSkillMapping"
         scoring:
           $ref: "#/components/schemas/CareerScoring"
         source:
@@ -942,7 +841,268 @@ components:
         - matches
         - normalizedSkills
         - unrecognizedSkills
+        - skillMappings
         - scoring
+        - source
+    ResumeAnalysisReport:
+      type: object
+      properties:
+        recognized_skills:
+          type: array
+          items: { type: string }
+        technical_skills:
+          type: array
+          items: { type: string }
+        soft_skills:
+          type: array
+          items: { type: string }
+        missing_skills:
+          type: array
+          items: { type: string }
+        emerging_skills:
+          type: array
+          items: { type: string }
+        recommended_learning_path:
+          type: array
+          items: { type: string }
+        skill_score:
+          type: [number, "null"]
+        career_readiness:
+          type: string
+        candidate_level:
+          type: [string, "null"]
+        similar_profiles:
+          type: array
+          items: { type: string }
+        profile_suggestions:
+          $ref: "#/components/schemas/CvProfileSuggestions"
+        methodology:
+          type: string
+        limitations:
+          type: array
+          items: { type: string }
+        source:
+          $ref: "#/components/schemas/CareerSource"
+      required:
+        - recognized_skills
+        - technical_skills
+        - soft_skills
+        - missing_skills
+        - emerging_skills
+        - recommended_learning_path
+        - skill_score
+        - career_readiness
+        - candidate_level
+        - similar_profiles
+        - profile_suggestions
+        - methodology
+        - limitations
+        - source
+    SkillGapAnalysisReport:
+      type: object
+      properties:
+        target_role:
+          type: string
+        current_skills:
+          type: array
+          items: { type: string }
+        missing_skills:
+          type: array
+          items: { type: string }
+        recommended_courses:
+          type: array
+          items: { type: string }
+        recommended_learning_path:
+          type: array
+          items: { type: string }
+        estimated_learning_time:
+          type: [string, "null"]
+          description: Sum of provider-listed durations for returned resources; null when none are available.
+        overlap_score:
+          type: number
+        methodology:
+          type: string
+        limitations:
+          type: array
+          items: { type: string }
+        learning_resources:
+          $ref: "#/components/schemas/LearningResourcesResponse"
+        synthetic_ai_skill_reference:
+          $ref: "#/components/schemas/SyntheticAiSkillReference"
+        source:
+          $ref: "#/components/schemas/CareerSource"
+      required:
+        - target_role
+        - current_skills
+        - missing_skills
+        - recommended_courses
+        - recommended_learning_path
+        - estimated_learning_time
+        - overlap_score
+        - methodology
+        - limitations
+        - learning_resources
+        - synthetic_ai_skill_reference
+        - source
+    SyntheticAiSkillReference:
+      type: object
+      properties:
+        references:
+          type: array
+          items:
+            type: object
+            properties:
+              role: { type: string }
+              sampleSize: { type: integer, minimum: 1 }
+              means:
+                type: object
+                properties:
+                  ai: { type: number, minimum: 0, maximum: 5 }
+                  ml: { type: number, minimum: 0, maximum: 5 }
+                  deepLearning: { type: number, minimum: 0, maximum: 5 }
+                  generativeAi: { type: number, minimum: 0, maximum: 5 }
+                  promptEngineering: { type: number, minimum: 0, maximum: 5 }
+                  llmExperienceYears: { type: number, minimum: 0 }
+                required: [ai, ml, deepLearning, generativeAi, promptEngineering, llmExperienceYears]
+              experienceShares:
+                type: object
+                properties:
+                  ragPercent: { type: number, minimum: 0, maximum: 100 }
+                  fineTuningPercent: { type: number, minimum: 0, maximum: 100 }
+                  vectorDatabasePercent: { type: number, minimum: 0, maximum: 100 }
+                required: [ragPercent, fineTuningPercent, vectorDatabasePercent]
+            required: [role, sampleSize, means, experienceShares]
+        source:
+          type: object
+          properties:
+            datasetName: { type: string }
+            dataRowsIncluded: { type: integer, minimum: 1 }
+            rowsExcludedMissingRole: { type: integer, minimum: 0 }
+            provenance: { type: string }
+          required: [datasetName, dataRowsIncluded, rowsExcludedMissingRole, provenance]
+        limitations:
+          type: array
+          items: { type: string }
+      required: [references, source, limitations]
+    LearningResourcesResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [available, none_verified]
+        catalog:
+          type: object
+          properties:
+            reviewed_at:
+              type: string
+              format: date
+            sources:
+              type: array
+              items:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                  url:
+                    type: string
+                    format: uri
+                required: [provider, url]
+          required: [reviewed_at, sources]
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningResource"
+      required: [status, catalog, resources]
+    LearningResource:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        provider:
+          type: string
+        url:
+          type: string
+          format: uri
+        skills:
+          type: array
+          items:
+            type: string
+        duration_minutes:
+          type: integer
+          minimum: 1
+        duration_label:
+          type: string
+        prerequisites:
+          type: array
+          items:
+            type: string
+        recommended_prerequisites:
+          type: array
+          items:
+            type: string
+        cost:
+          type: string
+          enum: [Free]
+        cost_source_url:
+          type: string
+          format: uri
+      required:
+        - id
+        - title
+        - provider
+        - url
+        - skills
+        - duration_minutes
+        - duration_label
+        - prerequisites
+        - recommended_prerequisites
+        - cost
+        - cost_source_url
+    CareerPathAnalysisReport:
+      type: object
+      properties:
+        suitable_roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareerMatch"
+        growth_path:
+          type: array
+          items: { type: string }
+        methodology:
+          type: string
+        limitations:
+          type: array
+          items: { type: string }
+        source:
+          $ref: "#/components/schemas/CareerSource"
+      required: [suitable_roles, growth_path, methodology, limitations, source]
+    ProfileSimilarityReport:
+      type: object
+      properties:
+        similar_profiles:
+          type: array
+          items: { type: string }
+        common_skills:
+          type: array
+          items: { type: string }
+        recommended_next_skills:
+          type: array
+          items: { type: string }
+        methodology:
+          type: string
+        limitations:
+          type: array
+          items: { type: string }
+        source:
+          $ref: "#/components/schemas/CareerSource"
+      required:
+        - similar_profiles
+        - common_skills
+        - recommended_next_skills
+        - methodology
+        - limitations
         - source
     Job:
       type: object

@@ -5,231 +5,63 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export type SkillCatalogueEntrySourcesItem = typeof SkillCatalogueEntrySourcesItem[keyof typeof SkillCatalogueEntrySourcesItem];
-
-
-export const SkillCatalogueEntrySourcesItem = {
-  onet: 'onet',
-  dataset: 'dataset',
-} as const;
-
-export type SkillCatalogueEntryOnet = {
-  elementId: string;
-  group: string;
-  description: string;
-} | null;
-
-export interface SkillCatalogueEntry {
-  name: string;
-  /** Normalized name (NFKC, trimmed, lower case, single spaces), as used by matching. */
-  key: string;
-  facet: string;
-  sources: SkillCatalogueEntrySourcesItem[];
-  onet: SkillCatalogueEntryOnet;
-  aliases: string[];
+export interface AiAnnouncement {
+  title: string;
+  publishedOn: string;
+  /** @nullable */
+  category: string | null;
+  url: string;
+  source: string;
 }
 
-export type SkillCatalogueSources = {
-  onet: string;
-  dataset: string;
-  aliases: string;
-  facets: string;
+export type AiAnnouncementsResponseSource = {
+  name: string;
+  listingUrl: string;
 };
 
-export interface SkillCatalogue {
-  facets: string[];
-  entries: SkillCatalogueEntry[];
-  sources: SkillCatalogueSources;
+export interface AiAnnouncementsResponse {
+  items: AiAnnouncement[];
+  source: AiAnnouncementsResponseSource;
+  retrievedAt: string;
+  isStale: boolean;
+  /** @nullable */
+  warning: string | null;
+  limitations: string[];
 }
 
-export interface OccupationSkillsInput {
+export interface SkillFrequency {
+  skill: string;
+  /** @minimum 0 */
+  postingsWithSkill: number;
   /**
-     * @minItems 0
-     * @maxItems 50
-     * @items.minLength 1
-     * @items.maxLength 60
+     * @minimum 0
+     * @maximum 100
      */
-  skills: string[];
+  percentOfRolePostings: number;
 }
 
-export interface OccupationScale {
-  id: string;
-  name: string;
-  minimum: number;
-  maximum: number;
+export interface SkillFrequencyRole {
+  roleFamily: string;
+  /** @minimum 0 */
+  rolePostings: number;
+  skills: SkillFrequency[];
 }
 
-export interface OccupationSourceFile {
-  name: string;
-  url: string;
-  sha256: string;
-}
-
-export interface MycolSource {
-  edition: string;
-  title: string;
+export type SkillFrequenciesResponseSource = {
+  datasetName: string;
   publisher: string;
-  landingUrl: string;
-  reportUrl: string;
-  reportSha256: string;
-  referencePeriod: string;
-  /**
-     * Not stated in the report; null is intentional.
-     * @nullable
-     */
-  publicationDate: string | null;
-  classification: string;
-  listReference: string;
-  totalOccupationsListed: number;
-  reviewedAt: string;
-  scopeNote: string;
-  masco6Note: string;
-}
-
-export type OnetSourceScales = {
-  importance: OccupationScale;
-  level: OccupationScale;
+  period: string;
+  license: string;
+  citation: string;
+  urls: string[];
+  geographyNote: string;
+  measurementNote: string;
 };
 
-export interface OnetSource {
-  name: string;
-  release: string;
-  releaseDate: string;
-  taxonomy: string;
-  databaseUrl: string;
-  releasesUrl: string;
-  license: string;
-  licenseUrl: string;
-  licensePageUrl: string;
-  attribution: string;
-  modifications: string;
-  files: OccupationSourceFile[];
-  scales: OnetSourceScales;
-  localDemandNote: string;
-}
-
-export interface OccupationMappingReview {
-  reviewedAt: string;
-  method: string;
-}
-
-export interface OccupationEvidenceSources {
-  mycol: MycolSource;
-  onet: OnetSource;
-  mapping: OccupationMappingReview;
-}
-
-export interface MycolOccupation {
-  masco4: string;
-  title: string;
-  table7Number: number;
-  masco6: string[];
-  includedJobTitles: string[];
-  /** Printed report page of the occupation profile. */
-  profilePage: number;
-  edition: string;
-}
-
-export interface OnetOccupation {
-  code: string;
-  title: string;
-  description: string;
-  url: string;
-  skillRatingsAvailable: boolean;
-  ratedSkillsCount: number;
-}
-
-/**
- * The O*NET occupation relative to the MyCOL scope.
- */
-export type OccupationMappingRelation = typeof OccupationMappingRelation[keyof typeof OccupationMappingRelation];
-
-
-export const OccupationMappingRelation = {
-  exact: 'exact',
-  approximate: 'approximate',
-  broader: 'broader',
-  narrower: 'narrower',
-} as const;
-
-export type OccupationMappingStatus = typeof OccupationMappingStatus[keyof typeof OccupationMappingStatus];
-
-
-export const OccupationMappingStatus = {
-  verified: 'verified',
-  unverified: 'unverified',
-} as const;
-
-export interface OccupationMapping {
-  /** The O*NET occupation relative to the MyCOL scope. */
-  relation: OccupationMappingRelation;
-  status: OccupationMappingStatus;
-  rationale: string;
-  limitations: string;
-}
-
-export type DocumentedSkillDomain = typeof DocumentedSkillDomain[keyof typeof DocumentedSkillDomain];
-
-
-export const DocumentedSkillDomain = {
-  Essential: 'Essential',
-  Transferable: 'Transferable',
-} as const;
-
-export interface DocumentedSkill {
-  elementId: string;
-  name: string;
-  domain: DocumentedSkillDomain;
-  /** @nullable */
-  description: string | null;
-  /** O*NET Importance rating on its original 1-5 scale. */
-  importance: number;
-  /** O*NET Level rating on its original 0-7 scale. Not a 1-5 profile proficiency target. */
-  level: number;
-  /** O*NET's Recommend Suppress (low precision) flag for the Level rating. */
-  levelLowPrecision: boolean;
-  /** @nullable */
-  sampleSize: number | null;
-  ratingDate: string;
-  inProfile: boolean;
-}
-
-export interface OccupationOverlap {
-  matchedSkills: string[];
-  missingSkills: string[];
-  skillsConsidered: number;
-  /** Matched documented skills / documented skills x 100. Skill overlap only, not a hiring probability. */
-  score: number;
-}
-
-export type OccupationEvidenceRecommendationStatus = typeof OccupationEvidenceRecommendationStatus[keyof typeof OccupationEvidenceRecommendationStatus];
-
-
-export const OccupationEvidenceRecommendationStatus = {
-  eligible: 'eligible',
-  excluded: 'excluded',
-} as const;
-
-export interface OccupationEvidence {
-  id: string;
-  mycol: MycolOccupation;
-  onet: OnetOccupation;
-  mapping: OccupationMapping;
-  recommendationStatus: OccupationEvidenceRecommendationStatus;
-  recommended: boolean;
-  /** @nullable */
-  exclusionReason: string | null;
-  documentedSkills: DocumentedSkill[];
-  overlap: OccupationOverlap | null;
-  explanation: string;
-}
-
-export interface OccupationEvidenceResult {
-  normalizedSkills: string[];
-  selectionRule: string;
-  scoring: string;
-  sources: OccupationEvidenceSources;
-  occupations: OccupationEvidence[];
+export interface SkillFrequenciesResponse {
+  roles: SkillFrequencyRole[];
+  source: SkillFrequenciesResponseSource;
+  limitations: string[];
 }
 
 export interface ErrorResponse {
@@ -305,6 +137,27 @@ export interface CareerSkillsInput {
   skills: string[];
 }
 
+export interface ResumeTextInput {
+  /**
+     * @minLength 1
+     * @maxLength 200000
+     */
+  resume_text: string;
+}
+
+export interface SkillGapAnalysisInput {
+  /**
+     * @minLength 1
+     * @maxLength 200000
+     */
+  resume_text: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  target_role: string;
+}
+
 export interface CareerMatch {
   roleFamily: string;
   /** Matched skills / skills considered x 100, rounded to one decimal place. */
@@ -312,6 +165,20 @@ export interface CareerMatch {
   skillsConsidered: number;
   matchedSkills: string[];
   missingSkills: string[];
+}
+
+export type CareerSkillMappingMatchType = typeof CareerSkillMappingMatchType[keyof typeof CareerSkillMappingMatchType];
+
+
+export const CareerSkillMappingMatchType = {
+  exact: 'exact',
+  related: 'related',
+} as const;
+
+export interface CareerSkillMapping {
+  profileSkill: string;
+  datasetSkill: string;
+  matchType: CareerSkillMappingMatchType;
 }
 
 export interface CareerScoring {
@@ -336,7 +203,180 @@ export interface CareerMatchResult {
   matches: CareerMatch[];
   normalizedSkills: string[];
   unrecognizedSkills: string[];
+  skillMappings: CareerSkillMapping[];
   scoring: CareerScoring;
+  source: CareerSource;
+}
+
+export interface ResumeAnalysisReport {
+  recognized_skills: string[];
+  technical_skills: string[];
+  soft_skills: string[];
+  missing_skills: string[];
+  emerging_skills: string[];
+  recommended_learning_path: string[];
+  /** @nullable */
+  skill_score: number | null;
+  career_readiness: string;
+  /** @nullable */
+  candidate_level: string | null;
+  similar_profiles: string[];
+  profile_suggestions: CvProfileSuggestions;
+  methodology: string;
+  limitations: string[];
+  source: CareerSource;
+}
+
+export type LearningResourcesResponseStatus = typeof LearningResourcesResponseStatus[keyof typeof LearningResourcesResponseStatus];
+
+
+export const LearningResourcesResponseStatus = {
+  available: 'available',
+  none_verified: 'none_verified',
+} as const;
+
+export type LearningResourceCost = typeof LearningResourceCost[keyof typeof LearningResourceCost];
+
+
+export const LearningResourceCost = {
+  Free: 'Free',
+} as const;
+
+export interface LearningResource {
+  id: string;
+  title: string;
+  provider: string;
+  url: string;
+  skills: string[];
+  /** @minimum 1 */
+  duration_minutes: number;
+  duration_label: string;
+  prerequisites: string[];
+  recommended_prerequisites: string[];
+  cost: LearningResourceCost;
+  cost_source_url: string;
+}
+
+export type LearningResourcesResponseCatalogSourcesItem = {
+  provider: string;
+  url: string;
+};
+
+export type LearningResourcesResponseCatalog = {
+  reviewed_at: string;
+  sources: LearningResourcesResponseCatalogSourcesItem[];
+};
+
+export interface LearningResourcesResponse {
+  status: LearningResourcesResponseStatus;
+  catalog: LearningResourcesResponseCatalog;
+  resources: LearningResource[];
+}
+
+export type SyntheticAiSkillReferenceReferencesItemMeans = {
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  ai: number;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  ml: number;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  deepLearning: number;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  generativeAi: number;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  promptEngineering: number;
+  /** @minimum 0 */
+  llmExperienceYears: number;
+};
+
+export type SyntheticAiSkillReferenceReferencesItemExperienceShares = {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  ragPercent: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  fineTuningPercent: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  vectorDatabasePercent: number;
+};
+
+export type SyntheticAiSkillReferenceReferencesItem = {
+  role: string;
+  /** @minimum 1 */
+  sampleSize: number;
+  means: SyntheticAiSkillReferenceReferencesItemMeans;
+  experienceShares: SyntheticAiSkillReferenceReferencesItemExperienceShares;
+};
+
+export type SyntheticAiSkillReferenceSource = {
+  datasetName: string;
+  /** @minimum 1 */
+  dataRowsIncluded: number;
+  /** @minimum 0 */
+  rowsExcludedMissingRole: number;
+  provenance: string;
+};
+
+export interface SyntheticAiSkillReference {
+  references: SyntheticAiSkillReferenceReferencesItem[];
+  source: SyntheticAiSkillReferenceSource;
+  limitations: string[];
+}
+
+export interface SkillGapAnalysisReport {
+  target_role: string;
+  current_skills: string[];
+  missing_skills: string[];
+  recommended_courses: string[];
+  recommended_learning_path: string[];
+  /**
+     * Sum of provider-listed durations for returned resources; null when none are available.
+     * @nullable
+     */
+  estimated_learning_time: string | null;
+  overlap_score: number;
+  methodology: string;
+  limitations: string[];
+  learning_resources: LearningResourcesResponse;
+  synthetic_ai_skill_reference: SyntheticAiSkillReference;
+  source: CareerSource;
+}
+
+export interface CareerPathAnalysisReport {
+  suitable_roles: CareerMatch[];
+  growth_path: string[];
+  methodology: string;
+  limitations: string[];
+  source: CareerSource;
+}
+
+export interface ProfileSimilarityReport {
+  similar_profiles: string[];
+  common_skills: string[];
+  recommended_next_skills: string[];
+  methodology: string;
+  limitations: string[];
   source: CareerSource;
 }
 

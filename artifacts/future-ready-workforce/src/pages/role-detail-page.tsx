@@ -6,16 +6,9 @@ import { demoRoles, sdgGoals, sdgMappings } from '@/domain/demo-data';
 import { assessRole, methodology } from '@/domain/services';
 import { ChiliProgressBar } from '@/components/chili-progress-bar';
 import { EmptyBlock, EvidencePanel, GapStatus, PriorityTag, SectionTitle } from '@/components/workspace/ui';
-import { OccupationEvidenceDetail } from '@/components/workspace/occupation-evidence';
 
 export default function RoleDetailPage() {
   const { id } = useParams<{ id: string }>();
-  // Official MyCOL occupations share this route but keep their own evidence view.
-  if (id.startsWith('mycol-')) return <OccupationEvidenceDetail id={id} />;
-  return <SampleRoleDetail id={id} />;
-}
-
-function SampleRoleDetail({ id }: { id: string }) {
   const { profile, targetRoleId, setTargetRole } = useWorkspace();
   const role = demoRoles.find(r => r.id === id);
   const a = useMemo(() => role ? assessRole(profile, role) : null, [profile, role]);

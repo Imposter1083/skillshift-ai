@@ -44,18 +44,11 @@ router.get("/dosm/labour-force", async (req, res): Promise<void> => {
   }
 });
 
-// The reviewed snapshot is bundled with the server, so a successful
-// validation holds for the lifetime of the process.
-let jobMarketInsights: ReturnType<typeof validateDosmJobMarketInsightsSnapshot> | undefined;
-
 router.get("/dosm/job-market-insights", (_req, res): void => {
   try {
-    if (!jobMarketInsights) {
-      const result = validateDosmJobMarketInsightsSnapshot();
-      GetDosmJobMarketInsightsResponse.parse(result);
-      jobMarketInsights = result;
-    }
-    res.json(jobMarketInsights);
+    const result = validateDosmJobMarketInsightsSnapshot();
+    GetDosmJobMarketInsightsResponse.parse(result);
+    res.json(result);
   } catch {
     res.status(500).json({
       error: "The reviewed DOSM job-market snapshot failed validation.",

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense } from 'react';
 import { Link, Route, Switch } from 'wouter';
 import { ArrowRight } from 'lucide-react';
 
@@ -10,6 +10,7 @@ import { LoadingBlock } from '@/components/workspace/ui';
 import DashboardPage from '@/pages/dashboard-page';
 const ProfilePage = lazy(() => import('@/pages/profile-page'));
 const CareersPage = lazy(() => import('@/pages/careers-page'));
+const CvRecommendationsPage = lazy(() => import('@/pages/cv-recommendations-page'));
 const RoleDetailPage = lazy(() => import('@/pages/role-detail-page'));
 const TrendsPage = lazy(() => import('@/pages/trends-page'));
 const TwinPage = lazy(() => import('@/pages/twin-page'));
@@ -17,14 +18,12 @@ const RoadmapPage = lazy(() => import('@/pages/roadmap-page'));
 const SdgsPage = lazy(() => import('@/pages/sdgs-page'));
 const ScenariosPage = lazy(() => import('@/pages/scenarios-page'));
 const TeamPage = lazy(() => import('@/pages/team-page'));
-const DatasetMatchingPage = lazy(() => import('@/pages/dataset-matching-page'));
 
 const JobSearchPage = lazy(() => import('@/components/job-search-page'));
 const JobDetailsPage = lazy(() => import('@/components/job-details-page'));
 
 function useProfileSkillNames() {
-  const { skills } = useWorkspace().profile;
-  return useMemo(() => skills.map(s => s.name), [skills]);
+  return useWorkspace().profile.skills.map(s => s.name);
 }
 function JobsRoute() {
   const skills = useProfileSkillNames();
@@ -47,6 +46,7 @@ function App() {
         <Route path="/" component={DashboardPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/careers" component={CareersPage} />
+        <Route path="/cv-analysis" component={CvRecommendationsPage} />
         <Route path="/roles/:id" component={RoleDetailPage} />
         <Route path="/trends" component={TrendsPage} />
         <Route path="/twin" component={TwinPage} />
@@ -56,7 +56,6 @@ function App() {
         <Route path="/team" component={TeamPage} />
         <Route path="/jobs" component={JobsRoute} />
         <Route path="/jobs/:id" component={JobDetailsRoute} />
-        <Route path="/dataset-matching" component={DatasetMatchingPage} />
         <Route component={NotFoundPage} />
       </Switch>
       </Suspense>

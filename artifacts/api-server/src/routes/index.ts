@@ -3,8 +3,8 @@ import healthRouter from "./health";
 import careerRouter from "./career";
 import jobsRouter from "./jobs";
 import dosmRouter from "./dosm";
-import occupationsRouter from "./occupations";
-import skillsRouter from "./skills";
+import analysisRouter from "./analysis";
+import signalsRouter from "./signals";
 
 const router: IRouter = Router();
 
@@ -12,7 +12,7 @@ router.use(healthRouter);
 router.use(careerRouter);
 router.use(jobsRouter);
 router.use(dosmRouter);
-router.use(occupationsRouter);
-router.use(skillsRouter);
+router.use(analysisRouter);
+router.use(signalsRouter);
 
 export default router;

@@ -5,6 +5,7 @@ import { demoService } from '@/domain/services';
 import type { RadarFilters } from '@/domain/types';
 import { EmptyBlock, ErrorBlock, EvidencePanel, LoadingBlock, PageHead, SectionTitle, useAsync } from '@/components/workspace/ui';
 import { DosmDataPanels } from '@/components/workspace/dosm-data-panels';
+import { AiAnnouncementsPanel, SkillFrequencyPanel } from '@/components/workspace/radar-evidence-panels';
 
 const uniq = (xs: string[]) => Array.from(new Set(xs)).sort();
 const colors = ['#3478d4', '#159a9a', '#7b61c9', '#5f8d45', '#d27b28', '#a9578f', '#5b7187', '#32908a', '#7f6c42', '#6c72b5'];
@@ -23,8 +24,18 @@ export default function TrendsPage() {
   const sel = (label: string, k: keyof RadarFilters, opts: [string, string][]) => <div className="field"><label htmlFor={`f-${k}`}>{label}</label>
     <select id={`f-${k}`} className="fr-select" value={filters[k] ?? ''} onChange={e => set(k, e.target.value)} data-testid={`select-filter-${k}`}><option value="">All</option>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>;
   return <>
-    <PageHead eyebrow="Skills radar · DOSM context + synthetic examples" title="Signals to discuss, not to bet on." subtitle="Official national labour-force and quarterly online-posting data are shown separately from the synthetic skill examples below." />
+    <PageHead eyebrow="Skills radar · evidence panels" title="Signals to discuss, not to bet on." subtitle="Four separate evidence types: national labour-force indicators, online job offerings by occupation, AI-related government announcements, and global skill-posting frequencies. None is a forecast, and none is combined into a score." />
     <DosmDataPanels />
+    <div className="stack" style={{ gap: 18, marginBottom: 22, minWidth: 0 }}>
+      <AiAnnouncementsPanel />
+      <SkillFrequencyPanel />
+    </div>
+    <details className="panel panel-pad" style={{ marginBottom: 18 }} data-testid="panel-synthetic-examples">
+      <summary><strong>Synthetic examples (fictional, not evidence)</strong></summary>
+      <p className="muted" style={{ marginTop: 12 }}>These hand-authored records exist only to demonstrate the filters. Do not read them as real labour-market data.</p>
+    </details>
+    <details className="stack" style={{ marginBottom: 18 }} data-testid="section-synthetic-radar">
+      <summary>Open synthetic skill-history demo</summary>
     <div className="panel panel-pad" style={{ marginBottom: 18 }}>
       <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
         {sel('Category', 'category', uniq(marketRecords.map(r => r.category)).map(v => [v, v]))}
@@ -39,7 +50,7 @@ export default function TrendsPage() {
     <details className="panel panel-pad" style={{ marginBottom: 18 }} data-testid="panel-radar-methodology">
       <summary>Evidence & methodology</summary>
       <p className="muted" style={{ marginTop: 12 }}>Each series contains hand-authored fictional posting counts at four historical sample dates. The chart plots those exact values, not a projection or an estimate of labour-market demand. Filters select records and observations; they do not infer missing dates or average regions together.</p>
-      <p className="muted">Select a record below for its source fields, observation period, last-updated date and missing/stale evidence warnings. These synthetic records have no verified source; the official DOSM figures above are kept separate and are not mixed into this chart.</p>
+      <p className="muted">Select a record below for its source fields, observation period, last-updated date and missing/stale evidence warnings. No verified labour-market source is connected.</p>
     </details>
     {result.status === 'loading' && !result.data && <LoadingBlock />}
     {result.status === 'error' && <ErrorBlock message={result.error ?? 'Could not load signals.'} onRetry={result.retry} />}
@@ -66,5 +77,6 @@ export default function TrendsPage() {
         </div>
       </div>
     </>)}
+    </details>
   </>;
 }
