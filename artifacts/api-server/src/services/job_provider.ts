@@ -233,39 +233,69 @@ function normalize(value: string): string {
   return value.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+interface IndexedJob {
+  job: JobListing;
+  title: string;
+  company: string;
+  skills: string[];
+  searchable: string;
+  state: string;
+  city: string;
+}
+
+// Normalized once so requests only compare prepared strings.
+function indexJob(job: JobListing): IndexedJob {
+  const title = normalize(job.title);
+  const company = normalize(job.company);
+  const skills = job.requiredSkills.map(normalize);
+  return {
+    job,
+    title,
+    company,
+    skills,
+    searchable: [title, company, ...skills].join(" "),
+    state: normalize(job.state ?? ""),
+    city: normalize(job.city ?? ""),
+  };
+}
+
 export class DemoJobProvider implements JobProvider {
+  private readonly indexed = DEMO_JOBS.map(indexJob);
+  private readonly byId = new Map(this.indexed.map((entry) => [entry.job.id, entry]));
+
   async listJobs(filters: JobFilters): Promise<JobPage> {
     const query = normalize(filters.q ?? "");
     const queryTerms = query.split(" ").filter(Boolean);
-    let jobs = DEMO_JOBS.filter((job) => {
-      if (query) {
-        const searchable = normalize(
-          [job.title, job.company, ...job.requiredSkills].join(" "),
-        );
-        if (!queryTerms.every((term) => searchable.includes(term))) return false;
-      }
+    const state = filters.state ? normalize(filters.state) : null;
+    const city = filters.city ? normalize(filters.city) : null;
+    const matching = this.indexed.filter(({ job, searchable, ...fields }) => {
+      if (!queryTerms.every((term) => searchable.includes(term))) return false;
       if (filters.minSalary !== undefined && (job.salaryMin === null || job.salaryMin < filters.minSalary)) return false;
       if (filters.maxSalary !== undefined && (job.salaryMin === null || job.salaryMin > filters.maxSalary)) return false;
-      if (filters.state && normalize(job.state ?? "") !== normalize(filters.state)) return false;
-      if (filters.city && normalize(job.city ?? "") !== normalize(filters.city)) return false;
+      if (state !== null && fields.state !== state) return false;
+      if (city !== null && fields.city !== city) return false;
       if (filters.remote !== undefined && job.remote !== filters.remote) return false;
       if (filters.employmentType && job.employmentType !== filters.employmentType) return false;
       return true;
     });
 
+    const byRecent = (a: JobListing, b: JobListing) => b.datePosted.localeCompare(a.datePosted);
+    let jobs: JobListing[];
     if (filters.sort === "relevance" && queryTerms.length) {
-      const relevance = (job: JobListing) => {
-        const title = normalize(job.title);
-        const company = normalize(job.company);
-        return queryTerms.reduce(
-          (score, term) => score + (title.includes(term) ? 3 : 0) + (company.includes(term) ? 2 : 0) +
-            (job.requiredSkills.some((skill) => normalize(skill).includes(term)) ? 1 : 0),
-          0,
-        );
-      };
-      jobs = jobs.sort((a, b) => relevance(b) - relevance(a) || b.datePosted.localeCompare(a.datePosted));
+      // Score each job once rather than inside the sort comparator.
+      jobs = matching
+        .map((entry) => ({
+          job: entry.job,
+          relevance: queryTerms.reduce(
+            (score, term) => score + (entry.title.includes(term) ? 3 : 0) + (entry.company.includes(term) ? 2 : 0) +
+              (entry.skills.some((skill) => skill.includes(term)) ? 1 : 0),
+            0,
+          ),
+        }))
+        .sort((a, b) => b.relevance - a.relevance || byRecent(a.job, b.job))
+        .map((entry) => entry.job);
     } else {
-      jobs = jobs.sort((a, b) => b.datePosted.localeCompare(a.datePosted));
+      jobs = matching.map((entry) => entry.job).sort(byRecent);
     }
 
     const total = jobs.length;
@@ -280,23 +310,22 @@ export class DemoJobProvider implements JobProvider {
   }
 
   async getJobDetails(id: string): Promise<JobListing | null> {
-    return DEMO_JOBS.find((job) => job.id === id) ?? null;
+    return this.byId.get(id)?.job ?? null;
   }
 
   async matchJobs(candidateSkills: string[], jobIds?: string[]): Promise<JobMatchScore[]> {
     const candidate = new Set(candidateSkills.map(normalize).filter(Boolean));
     const selected = jobIds ? new Set(jobIds) : null;
-    return DEMO_JOBS.filter((job) => !selected || selected.has(job.id)).map((job) => {
-      const matchedSkills = job.requiredSkills.filter((skill) => candidate.has(normalize(skill)));
-      const missingSkills = job.requiredSkills.filter((skill) => !candidate.has(normalize(skill)));
+    return this.indexed.filter(({ job }) => !selected || selected.has(job.id)).map(({ job, skills }) => {
+      const matchedSkills: string[] = [];
+      const missingSkills: string[] = [];
+      skills.forEach((skill, i) => (candidate.has(skill) ? matchedSkills : missingSkills).push(job.requiredSkills[i]));
       return {
         jobId: job.id,
-        score: job.requiredSkills.length
-          ? Math.round((matchedSkills.length / job.requiredSkills.length) * 100)
-          : 0,
+        score: skills.length ? Math.round((matchedSkills.length / skills.length) * 100) : 0,
         matchedSkills,
         missingSkills,
-        skillsConsidered: job.requiredSkills.length,
+        skillsConsidered: skills.length,
       };
     });
   }

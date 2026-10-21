@@ -67,7 +67,7 @@ export function JobSearchPage({ profileSkills }: Props) {
   }), [page, debouncedKeyword, minSalary, maxSalary, state, city, remoteOnly, employmentType, sort]);
 
   const jobsQuery = useListJobs(params, { query: { queryKey: getListJobsQueryKey(params), staleTime: 30_000 } });
-  const jobs = jobsQuery.data?.jobs ?? [];
+  const jobs = useMemo(() => jobsQuery.data?.jobs ?? [], [jobsQuery.data]);
   const matchMutation = useCalculateJobMatchScores();
   const skillSignature = profileSkills.join('|');
   const jobSignature = jobs.map(job => job.id).join('|');
@@ -79,18 +79,21 @@ export function JobSearchPage({ profileSkills }: Props) {
     // The effect is intentionally tied to the stable skills/list identities.
   }, [skillSignature, jobSignature]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scores = matchMutation.data?.scores ?? [];
-  const scoreById = new Map(scores.map(score => [score.jobId, score]));
+  const scoreById = useMemo(
+    () => new Map((matchMutation.data?.scores ?? []).map(score => [score.jobId, score])),
+    [matchMutation.data],
+  );
   const orderedJobs = useMemo(() => {
     const ordered = [...jobs];
     if (sort === 'recent') {
-      return ordered.sort((a, b) => new Date(b.datePosted).getTime() - new Date(a.datePosted).getTime());
+      const time = new Map(ordered.map(job => [job.id, new Date(job.datePosted).getTime()]));
+      return ordered.sort((a, b) => time.get(b.id)! - time.get(a.id)!);
     }
     if (profileSkills.length) {
       return ordered.sort((a, b) => (scoreById.get(b.id)?.score ?? -1) - (scoreById.get(a.id)?.score ?? -1));
     }
     return ordered;
-  }, [jobs, sort, profileSkills.length, scores]);
+  }, [jobs, sort, profileSkills.length, scoreById]);
   const total = jobsQuery.data?.total ?? 0;
   const pages = jobsQuery.data?.totalPages ?? 1;
   const activeFilters = Boolean(keyword || minSalary || maxSalary || state || city || remoteOnly || employmentType || sort !== 'relevance');

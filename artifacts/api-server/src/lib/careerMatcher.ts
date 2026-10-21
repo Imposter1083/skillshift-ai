@@ -128,6 +128,17 @@ export const SCORING = {
     "It measures skill overlap with this dataset only. It is not a probability of getting a job, and it is not Malaysia-specific.",
 } as const;
 
+const knownSkillSets = new WeakMap<CareerDataset, ReadonlySet<string>>();
+
+function knownSkills(dataset: CareerDataset): ReadonlySet<string> {
+  let known = knownSkillSets.get(dataset);
+  if (!known) {
+    known = new Set(dataset.allSkills);
+    knownSkillSets.set(dataset, known);
+  }
+  return known;
+}
+
 export function matchSkills(
   dataset: CareerDataset,
   rawSkills: string[],
@@ -139,14 +150,15 @@ export function matchSkills(
   const normalizedSkills = [
     ...new Set(rawSkills.map(normalizeSkill).filter((s) => s.length > 0)),
   ];
-  const known = new Set(dataset.allSkills);
+  const known = knownSkills(dataset);
   const unrecognizedSkills = normalizedSkills.filter((s) => !known.has(s));
   const provided = new Set(normalizedSkills);
 
   const matches: CareerMatch[] = dataset.roles
     .map((role) => {
-      const matchedSkills = role.skills.filter((s) => provided.has(s));
-      const missingSkills = role.skills.filter((s) => !provided.has(s));
+      const matchedSkills: string[] = [];
+      const missingSkills: string[] = [];
+      for (const s of role.skills) (provided.has(s) ? matchedSkills : missingSkills).push(s);
       const skillsConsidered = role.skills.length;
       return {
         roleFamily: role.roleFamily,

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { blankProfile, demoRoles, sampleProfile } from './demo-data';
 import { audiences, defaultWorkspace, loadWorkspace, persistWorkspace, profileSchema } from './storage';
 import type { Audience, DemoProfile, WorkspaceState } from './types';
@@ -54,29 +54,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try { setStorageWarning(persistWorkspace(window.localStorage, state)); }
     catch { setStorageWarning('Browser storage is unavailable. Changes last for this session only.'); }
   }, [state]);
-  const update = (transform: (current: WorkspaceState) => WorkspaceState) => {
-    dirty.current = true;
-    setState(transform);
-  };
-  const saveProfile = (profile: DemoProfile) => {
-    const validated = profileSchema.parse(profile) as DemoProfile;
-    update(s => ({ ...s, profiles: { ...s.profiles, [validated.audience]: validated } }));
-  };
-  const value: WorkspaceContextValue = {
-    state, profile: state.profiles[state.audience], targetRoleId: state.targets[state.audience], storageWarning,
-    setAudience: audience => update(s => ({ ...s, audience })),
-    saveProfile,
-    resetProfile: () => update(s => ({
-      ...s, profiles: { ...s.profiles, [s.audience]: blankProfile(s.audience) },
-      completion: Object.fromEntries(Object.entries(s.completion).filter(([key]) => !key.startsWith(`${s.audience}:`))),
-    })),
-    loadSample: variant => saveProfile(sampleProfile(state.audience, variant)),
-    setTargetRole: id => {
-      if (!demoRoles.some(role => role.id === id)) throw new Error('Choose an available demo career.');
-      update(s => ({ ...s, targets: { ...s.targets, [s.audience]: id } }));
-    },
-    toggleCompletion: key => update(s => ({ ...s, completion: { ...s.completion, [key]: !s.completion[key] } })),
-  };
+  // Handlers only use functional updates, so the context value needs to change
+  // only when the state it exposes does; consumers skip unrelated re-renders.
+  const value = useMemo<WorkspaceContextValue>(() => {
+    const update = (transform: (current: WorkspaceState) => WorkspaceState) => {
+      dirty.current = true;
+      setState(transform);
+    };
+    const saveProfile = (profile: DemoProfile) => {
+      const validated = profileSchema.parse(profile) as DemoProfile;
+      update(s => ({ ...s, profiles: { ...s.profiles, [validated.audience]: validated } }));
+    };
+    return {
+      state, profile: state.profiles[state.audience], targetRoleId: state.targets[state.audience], storageWarning,
+      setAudience: audience => update(s => ({ ...s, audience })),
+      saveProfile,
+      resetProfile: () => update(s => ({
+        ...s, profiles: { ...s.profiles, [s.audience]: blankProfile(s.audience) },
+        completion: Object.fromEntries(Object.entries(s.completion).filter(([key]) => !key.startsWith(`${s.audience}:`))),
+      })),
+      loadSample: variant => saveProfile(sampleProfile(state.audience, variant)),
+      setTargetRole: id => {
+        if (!demoRoles.some(role => role.id === id)) throw new Error('Choose an available demo career.');
+        update(s => ({ ...s, targets: { ...s.targets, [s.audience]: id } }));
+      },
+      toggleCompletion: key => update(s => ({ ...s, completion: { ...s.completion, [key]: !s.completion[key] } })),
+    };
+  }, [state, storageWarning]);
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 export function useWorkspace() {
